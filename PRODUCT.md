@@ -26,15 +26,15 @@ The workflow remains inspectable, reversible, and editable in both a direct-mani
 
 ## Operating Context
 
-The app runs visibly on Windows 10/11. Recording is always user initiated and observes real input in the selected target. Version 1.3 replays through an activation-shielded hybrid UI Automation and Win32 background engine without moving the physical cursor. Projects are local JSON files.
+The app runs visibly on Windows 10/11. Recording is always user initiated and observes real input in the selected target. Version 1.4 defaults to strict semantic and Win32 background playback, reserving potentially focus-taking UI Automation invocation for an explicitly selected compatibility mode. Projects are local JSON files.
 
 ## Capabilities and Constraints
 
-Version 1.3 includes window selection and resolution, explicit recording, click and keyboard capture without mouse movement, workflow editing, shared visual/DSL undo and redo history, client-relative playback after moving the target, activation-shielded hybrid background playback, Automatic/UI Automation/Win32 compatibility modes, count/infinite/duration/clock-time schedules, Clear all, English/Vietnamese UI, a configurable global Run/Stop hotkey, diagnostic playback status, and project save/load. It intentionally excludes fully hidden-window automation, multiple concurrent tasks, calendar recurrence, image/OCR/pixel logic, complex conditions, cloud, accounts, databases, plugins, process injection, drivers, and anti-cheat bypass.
+Version 1.4 includes window selection and resolution, explicit recording, click and keyboard capture without mouse movement, workflow editing, shared visual/DSL undo and redo history, client-relative playback after moving the target, strict semantic Windows Calculator playback, activation-shielded Win32 fallback, an opt-in focus-unsafe UI Automation compatibility mode, count/infinite/duration/clock-time schedules, Clear all, English/Vietnamese UI, a configurable global Run/Stop hotkey, diagnostic playback status, and project save/load. It intentionally excludes fully hidden-window automation, multiple concurrent tasks, calendar recurrence, image/OCR/pixel logic, complex conditions, cloud, accounts, databases, plugins, process injection, drivers, and anti-cheat bypass.
 
 ## Brand Commitments
 
-The product name is Background Automation Studio. The version label is “Version 1.3 - Activation Shield & History”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
+The product name is Background Automation Studio. The version label is “Version 1.4 - Strict Focus & Semantic Playback”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
 
 ## Evidence on Hand
 

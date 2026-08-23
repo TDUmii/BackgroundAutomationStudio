@@ -112,19 +112,26 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
 
     private void RestoreUserForegroundIfStolen(IntPtr target, IntPtr previousForeground)
     {
-        if (previousForeground == IntPtr.Zero || previousForeground == target || !NativeMethods.IsWindow(previousForeground)) return;
-        if (NativeMethods.GetForegroundWindow() != target) return;
+        if (previousForeground == IntPtr.Zero || IsTargetWindow(target, previousForeground) || !NativeMethods.IsWindow(previousForeground)) return;
+        if (!IsTargetWindow(target, NativeMethods.GetForegroundWindow())) return;
         if (NativeMethods.SetForegroundWindow(previousForeground))
             StatusChanged?.Invoke(this, L("Target tried to take focus - your active window was restored", "Cửa sổ đích đã thử lấy focus - cửa sổ bạn đang dùng đã được khôi phục"));
     }
+
+    private static bool IsTargetWindow(IntPtr target, IntPtr candidate) =>
+        candidate != IntPtr.Zero &&
+        (candidate == target || NativeMethods.GetAncestor(candidate, NativeMethods.GaRoot) == target);
 
     private void DispatchClick(IntPtr root, PointerAction action, bool twice, string playbackMode)
     {
         var screen = new POINT(action.ClientX, action.ClientY);
         if (!NativeMethods.ClientToScreen(root, ref screen)) throw new InvalidOperationException("Could not convert the client click point.");
-        if (playbackMode != PlaybackModes.Win32Messages && TryInvokeAutomationElement(root, screen, twice ? 2 : 1))
+        if (playbackMode != PlaybackModes.Win32Messages &&
+            TryDispatchModernControl(root, screen, twice ? 2 : 1, playbackMode == PlaybackModes.UiAutomation, out var semanticCommand))
         {
-            StatusChanged?.Invoke(this, L("Modern control invoked in background - physical pointer unchanged", "Đã gọi điều khiển hiện đại trong nền - con trỏ thật không thay đổi"));
+            StatusChanged?.Invoke(this, semanticCommand
+                ? L("Focus-safe semantic command sent in background", "Đã gửi lệnh ngữ nghĩa an toàn focus trong nền")
+                : L("UI Automation invoked by explicit compatibility choice - target focus may change", "Đã gọi UI Automation theo lựa chọn tương thích - focus cửa sổ đích có thể thay đổi"));
             return;
         }
 
@@ -137,7 +144,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
 
         PostClick(root, action, false, twice);
         StatusChanged?.Invoke(this, playbackMode == PlaybackModes.Automatic
-            ? L("No modern control found - Classic Win32 message sent", "Không tìm thấy điều khiển hiện đại - đã gửi thông điệp Win32 cổ điển")
+            ? L("No focus-safe semantic command found - Classic Win32 message sent", "Không tìm thấy lệnh ngữ nghĩa giữ focus - đã gửi thông điệp Win32 cổ điển")
             : L("Classic Win32 click message sent in background", "Đã gửi thông điệp nhấp Win32 cổ điển trong nền"));
     }
 
@@ -148,9 +155,9 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         {
             token.ThrowIfCancellationRequested();
             var current = NativeMethods.GetForegroundWindow();
-            if (current == target) RestoreUserForegroundIfStolen(target, userForeground);
+            if (IsTargetWindow(target, current)) RestoreUserForegroundIfStolen(target, userForeground);
             else if (current != IntPtr.Zero && NativeMethods.IsWindow(current)) userForeground = current;
-            await Task.Delay(10, token);
+            await Task.Delay(1, token);
         }
     }
 
@@ -163,8 +170,9 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     private void ReportClassicKeyboard() => StatusChanged?.Invoke(this,
         L("Keyboard action sent through Classic Win32 messages", "Đã gửi thao tác bàn phím bằng thông điệp Win32 cổ điển"));
 
-    private static bool TryInvokeAutomationElement(IntPtr root, POINT screenPoint, int invokeCount)
+    private static bool TryDispatchModernControl(IntPtr root, POINT screenPoint, int invokeCount, bool allowFocusUnsafeUiAutomation, out bool semanticCommand)
     {
+        semanticCommand = false;
         try
         {
             var rootElement = AutomationElement.FromHandle(root);
@@ -189,6 +197,12 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                 if (area < bestArea) { best = candidate; bestArea = area; }
             }
             if (best is null) return false;
+            if (TryPostSemanticBackgroundAction(root, best, invokeCount))
+            {
+                semanticCommand = true;
+                return true;
+            }
+            if (!allowFocusUnsafeUiAutomation) return false;
             for (var i = 0; i < invokeCount; i++)
             {
                 if (!InvokeBackgroundAction(best)) return false;
@@ -200,6 +214,20 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         {
             return false;
         }
+    }
+
+    private static bool TryPostSemanticBackgroundAction(IntPtr root, AutomationElement element, int invokeCount)
+    {
+        if (FindCoreWindow(root) == IntPtr.Zero) return false;
+        string automationId;
+        try { automationId = element.Current.AutomationId; }
+        catch (ElementNotAvailableException) { return false; }
+        if (!FocusSafeSemanticCommands.TryGet(automationId, out var command)) return false;
+        for (var i = 0; i < invokeCount; i++)
+        {
+            if (command.Text is not null) PostText(root, command.Text); else PostKey(root, command.Key!);
+        }
+        return true;
     }
 
     private static bool SupportsBackgroundAction(AutomationElement element) =>
@@ -282,7 +310,23 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     {
         var threadId = NativeMethods.GetWindowThreadProcessId(root, out _);
         var info = new GUITHREADINFO { Size = (uint)Marshal.SizeOf<GUITHREADINFO>() };
-        return NativeMethods.GetGUIThreadInfo(threadId, ref info) && info.Focus != IntPtr.Zero ? info.Focus : root;
+        if (NativeMethods.GetGUIThreadInfo(threadId, ref info) && info.Focus != IntPtr.Zero) return info.Focus;
+        var coreWindow = FindCoreWindow(root);
+        return coreWindow != IntPtr.Zero ? coreWindow : root;
+    }
+
+    private static IntPtr FindCoreWindow(IntPtr root)
+    {
+        var coreWindow = IntPtr.Zero;
+        NativeMethods.EnumChildWindows(root, (candidate, _) =>
+        {
+            var className = new System.Text.StringBuilder(256);
+            NativeMethods.GetClassName(candidate, className, className.Capacity);
+            if (!string.Equals(className.ToString(), "Windows.UI.Core.CoreWindow", StringComparison.Ordinal)) return true;
+            coreWindow = candidate;
+            return false;
+        }, IntPtr.Zero);
+        return coreWindow;
     }
 
     private static void PostKeyMessage(IntPtr hwnd, ushort key, bool up)

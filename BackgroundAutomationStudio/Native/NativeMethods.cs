@@ -94,6 +94,8 @@ public static class NativeMethods
     [DllImport("user32.dll")]
     public static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
     [DllImport("user32.dll")]
+    public static extern bool EnumChildWindows(IntPtr parent, EnumWindowsProc callback, IntPtr lParam);
+    [DllImport("user32.dll")]
     public static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr newValue);

@@ -10,7 +10,7 @@ public sealed class AppSettings
 public static class PlaybackModes
 {
     public const string Automatic = "Automatic";
-    public const string UiAutomation = "UiAutomation";
+    public const string UiAutomation = "UiAutomationUnsafe";
     public const string Win32Messages = "Win32Messages";
 
     public static string Normalize(string? value) => value switch

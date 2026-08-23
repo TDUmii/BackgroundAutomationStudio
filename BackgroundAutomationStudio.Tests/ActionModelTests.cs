@@ -34,6 +34,7 @@ public sealed class ActionModelTests
     [InlineData(null, PlaybackModes.Automatic)]
     [InlineData("", PlaybackModes.Automatic)]
     [InlineData("Unexpected", PlaybackModes.Automatic)]
+    [InlineData("UiAutomation", PlaybackModes.Automatic)]
     [InlineData(PlaybackModes.Automatic, PlaybackModes.Automatic)]
     [InlineData(PlaybackModes.UiAutomation, PlaybackModes.UiAutomation)]
     [InlineData(PlaybackModes.Win32Messages, PlaybackModes.Win32Messages)]

@@ -195,9 +195,9 @@ The recording banner uses a dark red surface and muted red border. An eight-pixe
 
 ### Playback Compatibility
 
-Settings presents three full-width, text-led choices: Automatic, Modern controls through UI Automation, and Classic Win32 messages. Each choice includes its operational consequence, uses the established graphite selection treatment, and remains keyboard focusable. Automatic is the default. Compatibility copy distinguishes a covered window from minimized and fully hidden states so the interface does not promise universal hidden-window automation.
+Settings presents three full-width, text-led choices: Strict background, Modern controls that may take focus, and Classic Win32 messages. Each choice includes its operational consequence, uses the established graphite selection treatment, and remains keyboard focusable. Strict background is the default and never calls focus-taking UI Automation patterns. The Modern option is explicitly labeled as potentially interrupting typing and IME composition. Compatibility copy distinguishes a covered window from minimized and fully hidden states so the interface does not promise universal hidden-window automation.
 
-During a run, the activation shield prevents the target from taking foreground focus and the status bar reports shield, fallback, and focus-guard events in plain language. Playback never restores the target's recorded desktop position. A visible target can be dragged while running because every action resolves its client-relative coordinate against the current window position.
+During a run, the activation shield prevents ordinary target activation and the status bar distinguishes focus-safe semantic commands, Win32 fallback, and explicitly requested focus-unsafe UI Automation. Playback never restores the target's recorded desktop position. A visible target can be dragged while running because every action resolves its client-relative coordinate against the current window position.
 
 ### Editor History
 

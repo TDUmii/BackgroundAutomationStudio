@@ -26,7 +26,7 @@
                 <RadioButton x:Name="AutomaticRadio" GroupName="PlaybackMode" Style="{StaticResource PlaybackChoice}" AutomationProperties.Name="Automatic playback compatibility">
                     <StackPanel><TextBlock Text="{DynamicResource AutomaticMode}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource AutomaticModeHelp}" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
                 </RadioButton>
-                <RadioButton x:Name="UiAutomationRadio" GroupName="PlaybackMode" Style="{StaticResource PlaybackChoice}" AutomationProperties.Name="Modern controls UI Automation mode">
+                <RadioButton x:Name="UiAutomationRadio" GroupName="PlaybackMode" Style="{StaticResource PlaybackChoice}" AutomationProperties.Name="Modern controls mode, may take focus">
                     <StackPanel><TextBlock Text="{DynamicResource UiAutomationMode}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource UiAutomationModeHelp}" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
                 </RadioButton>
                 <RadioButton x:Name="Win32Radio" GroupName="PlaybackMode" Style="{StaticResource PlaybackChoice}" AutomationProperties.Name="Classic Win32 messages mode">
