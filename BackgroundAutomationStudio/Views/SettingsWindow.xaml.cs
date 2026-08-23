@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using BackgroundAutomationStudio.Models;
 using BackgroundAutomationStudio.Services;
 
@@ -31,6 +32,24 @@ public partial class SettingsWindow : Window
 
     private void LanguageChoice_Checked(object sender, RoutedEventArgs e) => UpdateLanguageHelp();
 
+    private void SettingsWindow_Loaded(object sender, RoutedEventArgs e) => BringSelectedModeIntoView();
+
+    private void BringSelectedModeIntoView()
+    {
+        var selected = new[] { AutomaticRadio, GameForegroundRadio, GameBackgroundRadio, UiAutomationRadio, Win32Radio }.FirstOrDefault(choice => choice.IsChecked == true);
+        if (selected is not null)
+        {
+            Dispatcher.BeginInvoke(new Action(selected.BringIntoView), DispatcherPriority.ContextIdle);
+        }
+    }
+
+    private void SettingsWindow_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (SettingsScrollViewer.ScrollableHeight <= 0) return;
+        SettingsScrollViewer.ScrollToVerticalOffset(SettingsScrollViewer.VerticalOffset - e.Delta);
+        e.Handled = true;
+    }
+
     private void UpdateLanguageHelp()
     {
         if (LanguageHelp is null) return;
@@ -39,8 +58,16 @@ public partial class SettingsWindow : Window
 
     private void HotkeyBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        e.Handled = true;
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key == Key.Tab)
+        {
+            e.Handled = true;
+            var direction = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? FocusNavigationDirection.Previous : FocusNavigationDirection.Next;
+            (sender as UIElement)?.MoveFocus(new TraversalRequest(direction));
+            return;
+        }
+        if (key == Key.Escape) return;
+        e.Handled = true;
         if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin) return;
         var text = HotkeyParser.FromKeyEvent(key, Keyboard.Modifiers);
         if (!string.IsNullOrEmpty(text) && sender is TextBox box)

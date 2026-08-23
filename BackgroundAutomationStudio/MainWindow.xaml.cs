@@ -36,12 +36,20 @@ public partial class MainWindow : Window
     private void ShowSettings()
     {
         var dialog = new SettingsWindow(_settings.Current) { Owner = this };
-        if (dialog.ShowDialog() != true || dialog.Result is null) return;
-        _settings.Save(dialog.Result);
-        LocalizationService.Apply(dialog.Result.Language);
-        if (DataContext is MainViewModel vm) vm.RefreshLanguage();
-        UpdateHotkeyLabel();
-        RegisterHotkey(false);
+        _runHotkey.Unregister();
+        _pauseHotkey.Unregister();
+        try
+        {
+            if (dialog.ShowDialog() != true || dialog.Result is null) return;
+            _settings.Save(dialog.Result);
+            LocalizationService.Apply(dialog.Result.Language);
+            if (DataContext is MainViewModel vm) vm.RefreshLanguage();
+            UpdateHotkeyLabel();
+        }
+        finally
+        {
+            RegisterHotkey(false);
+        }
     }
 
     private void RegisterHotkey(bool silent)
