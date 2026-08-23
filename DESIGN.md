@@ -197,6 +197,12 @@ The recording banner uses a dark red surface and muted red border. An eight-pixe
 
 Settings presents three full-width, text-led choices: Automatic, Modern controls through UI Automation, and Classic Win32 messages. Each choice includes its operational consequence, uses the established graphite selection treatment, and remains keyboard focusable. Automatic is the default. Compatibility copy distinguishes a covered window from minimized and fully hidden states so the interface does not promise universal hidden-window automation.
 
+### Run Schedule
+
+The capture-and-playback panel uses one dark native-feeling selector for four mutually exclusive schedules: a fixed repeat count, infinite until stopped, a duration in minutes, or a clock stop time. Only the field required by the selected schedule remains visible. The dropdown, selected state, keyboard focus, and popup items use the same graphite surfaces and blue focus treatment as the rest of the studio.
+
+Clear all belongs at the lower-left edge of the visual workflow toolbar, spatially separated from single-row editing commands. It uses the danger treatment and always asks for confirmation before clearing the workflow.
+
 ### Empty State
 
 The empty editor centers “No actions yet” with guidance to select a target, then record or use Add action. Keep it actionable and specific; do not replace it with a blank list or generic placeholder.

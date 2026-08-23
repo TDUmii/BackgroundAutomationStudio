@@ -24,6 +24,7 @@ public static class NativeMethods
     public const uint SwpNoZOrder = 0x0004;
     public const uint SwpNoActivate = 0x0010;
     public const int SwRestore = 9;
+    public const int SwShowNoActivate = 4;
     public const int GwlExStyle = -20;
     public const long WsExToolWindow = 0x00000080L;
     public const int SmCxDoubleclk = 36;

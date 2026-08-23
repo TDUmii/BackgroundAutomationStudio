@@ -38,7 +38,10 @@ public sealed class ProjectService
             ?? throw new InvalidDataException("The project file is empty or invalid.");
         if (project.Version != 1) throw new InvalidDataException($"Project version {project.Version} is not supported by Version 1.");
         project.Actions ??= [];
+        project.RepeatMode = RepeatModes.Normalize(project.RepeatMode);
         project.RepeatCount = Math.Clamp(project.RepeatCount, 1, 999);
+        project.RepeatDurationMinutes = Math.Clamp(project.RepeatDurationMinutes, 1, 10080);
+        if (!TimeSpan.TryParse(project.StopAtTime, out var stopAt) || stopAt < TimeSpan.Zero || stopAt >= TimeSpan.FromDays(1)) project.StopAtTime = "23:00";
         return project;
     }
 }

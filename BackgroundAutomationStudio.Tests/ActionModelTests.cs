@@ -39,4 +39,23 @@ public sealed class ActionModelTests
     [InlineData(PlaybackModes.Win32Messages, PlaybackModes.Win32Messages)]
     public void PlaybackMode_NormalizesPersistedSettings(string? value, string expected) =>
         Assert.Equal(expected, PlaybackModes.Normalize(value));
+
+    [Theory]
+    [InlineData(null, RepeatModes.Count)]
+    [InlineData("", RepeatModes.Count)]
+    [InlineData("Unexpected", RepeatModes.Count)]
+    [InlineData(RepeatModes.Count, RepeatModes.Count)]
+    [InlineData(RepeatModes.Infinite, RepeatModes.Infinite)]
+    [InlineData(RepeatModes.Duration, RepeatModes.Duration)]
+    [InlineData(RepeatModes.UntilTime, RepeatModes.UntilTime)]
+    public void RepeatMode_NormalizesPersistedProjects(string? value, string expected) =>
+        Assert.Equal(expected, RepeatModes.Normalize(value));
+
+    [Fact]
+    public void GetNextStopAt_UsesTodayOrTomorrowWithoutDroppingOffset()
+    {
+        var now = new DateTimeOffset(2026, 8, 23, 20, 0, 0, TimeSpan.FromHours(7));
+        Assert.Equal(new DateTimeOffset(2026, 8, 23, 21, 30, 0, now.Offset), PlaybackRunOptions.GetNextStopAt(new TimeSpan(21, 30, 0), now));
+        Assert.Equal(new DateTimeOffset(2026, 8, 24, 8, 0, 0, now.Offset), PlaybackRunOptions.GetNextStopAt(new TimeSpan(8, 0, 0), now));
+    }
 }

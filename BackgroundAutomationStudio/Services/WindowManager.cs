@@ -11,6 +11,7 @@ public interface IWindowManager
     WindowTarget GetTarget(IntPtr hwnd);
     IntPtr Resolve(WindowTarget target);
     void RestoreLayout(WindowTarget target, IntPtr hwnd);
+    bool IsLayoutCurrent(WindowTarget target, IntPtr hwnd);
     void Activate(IntPtr hwnd);
     bool IsPointInsideTarget(IntPtr targetHwnd, POINT screenPoint);
 }
@@ -69,10 +70,16 @@ public sealed class WindowManager : IWindowManager
     public void RestoreLayout(WindowTarget target, IntPtr hwnd)
     {
         if (target.RecordedWidth <= 0 || target.RecordedHeight <= 0) throw new InvalidOperationException("The project has no valid recorded window layout.");
-        if (NativeMethods.IsIconic(hwnd)) NativeMethods.ShowWindow(hwnd, NativeMethods.SwRestore);
+        if (!NativeMethods.IsIconic(hwnd) && IsLayoutCurrent(target, hwnd)) return;
+        if (NativeMethods.IsIconic(hwnd)) NativeMethods.ShowWindow(hwnd, NativeMethods.SwShowNoActivate);
         if (!NativeMethods.SetWindowPos(hwnd, IntPtr.Zero, target.RecordedX, target.RecordedY, target.RecordedWidth, target.RecordedHeight, NativeMethods.SwpNoZOrder | NativeMethods.SwpNoActivate))
             throw new Win32Exception("Windows could not restore the target layout.");
     }
+
+    public bool IsLayoutCurrent(WindowTarget target, IntPtr hwnd) =>
+        NativeMethods.GetWindowRect(hwnd, out var rect) &&
+        rect.Left == target.RecordedX && rect.Top == target.RecordedY &&
+        rect.Width == target.RecordedWidth && rect.Height == target.RecordedHeight;
 
     public void Activate(IntPtr hwnd)
     {

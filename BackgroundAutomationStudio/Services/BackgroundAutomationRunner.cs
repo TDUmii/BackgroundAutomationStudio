@@ -23,13 +23,23 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     public event EventHandler<AutomationAction?>? CurrentActionChanged;
     public event EventHandler<string>? StatusChanged;
 
-    public async Task RunAsync(WindowTarget target, IReadOnlyList<AutomationAction> actions, int repeatCount = 1, CancellationToken cancellationToken = default)
+    public async Task RunAsync(WindowTarget target, IReadOnlyList<AutomationAction> actions, PlaybackRunOptions options, CancellationToken cancellationToken = default)
     {
         if (IsRunning) throw new InvalidOperationException("A workflow is already running.");
+        if (!actions.Any(action => action.Enabled)) throw new InvalidOperationException(L("Enable at least one workflow action before running.", "Hãy bật ít nhất một thao tác trước khi chạy."));
         var hwnd = _windowManager.Resolve(target);
         if (hwnd == IntPtr.Zero) throw new InvalidOperationException("Target window was not found. Open it or use Select window again.");
         if (!NativeMethods.IsWindowVisible(hwnd)) throw new InvalidOperationException(L("The target is hidden. Show its window before running the workflow.", "Cửa sổ đích đang bị ẩn. Hãy hiển thị cửa sổ trước khi chạy quy trình."));
-        repeatCount = Math.Clamp(repeatCount, 1, 999);
+        var repeatMode = RepeatModes.Normalize(options.Mode);
+        var repeatCount = Math.Clamp(options.RepeatCount, 1, 999);
+        var deadline = repeatMode switch
+        {
+            RepeatModes.Duration when options.Duration > TimeSpan.Zero => DateTimeOffset.Now.Add(options.Duration),
+            RepeatModes.UntilTime when options.StopAt is { } stopAt && stopAt > DateTimeOffset.Now => stopAt,
+            RepeatModes.Duration => throw new InvalidOperationException(L("The run duration must be greater than zero.", "Thời lượng chạy phải lớn hơn 0.")),
+            RepeatModes.UntilTime => throw new InvalidOperationException(L("The scheduled stop time must be in the future.", "Giờ dừng đã đặt phải nằm trong tương lai.")),
+            _ => (DateTimeOffset?)null
+        };
         var playbackMode = PlaybackModes.Normalize(_playbackModeProvider());
         _runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var token = _runCts.Token;
@@ -38,19 +48,32 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         try
         {
             var wasMinimized = NativeMethods.IsIconic(hwnd);
-            StatusChanged?.Invoke(this, L("Restoring target layout without activation...", "Đang khôi phục bố cục cửa sổ đích mà không kích hoạt..."));
-            _windowManager.RestoreLayout(target, hwnd);
-            await Task.Delay(150, token);
-            if (wasMinimized) StatusChanged?.Invoke(this, L("Target was minimized - restored without activation", "Cửa sổ đích đã thu nhỏ - đã khôi phục mà không kích hoạt"));
-            for (var iteration = 1; iteration <= repeatCount; iteration++)
+            var needsLayoutRestore = wasMinimized || !_windowManager.IsLayoutCurrent(target, hwnd);
+            if (needsLayoutRestore)
             {
+                var foregroundBeforeRestore = NativeMethods.GetForegroundWindow();
+                StatusChanged?.Invoke(this, L("Restoring target layout without activation...", "Đang khôi phục bố cục cửa sổ đích mà không kích hoạt..."));
+                _windowManager.RestoreLayout(target, hwnd);
+                RestoreUserForegroundIfStolen(hwnd, foregroundBeforeRestore);
+                await Task.Delay(150, token);
+                if (wasMinimized) StatusChanged?.Invoke(this, L("Target was minimized - shown without activation", "Cửa sổ đích đã thu nhỏ - đã hiện lại mà không kích hoạt"));
+            }
+
+            long iteration = 1;
+            var stoppedBySchedule = false;
+            while (repeatMode != RepeatModes.Count || iteration <= repeatCount)
+            {
+                if (deadline is { } beforeIteration && DateTimeOffset.Now >= beforeIteration) { stoppedBySchedule = true; break; }
                 foreach (var action in actions.Where(a => a.Enabled))
                 {
                     token.ThrowIfCancellationRequested();
                     await WaitWhilePausedAsync(token);
+                    if (deadline is { } beforeAction && DateTimeOffset.Now >= beforeAction) { stoppedBySchedule = true; break; }
                     CurrentActionChanged?.Invoke(this, action);
-                    StatusChanged?.Invoke(this, L($"Run {iteration}/{repeatCount} - {action.ActionType}", $"Lần chạy {iteration}/{repeatCount} - {action.ActionType}"));
+                    var iterationLabel = repeatMode == RepeatModes.Count ? $"{iteration}/{repeatCount}" : $"{iteration}/∞";
+                    StatusChanged?.Invoke(this, L($"Run {iterationLabel} - {action.ActionType}", $"Lần chạy {iterationLabel} - {action.ActionType}"));
                     if (action.DelayBefore > 0) await DelayWithPauseAsync(action.DelayBefore, token);
+                    var foregroundBeforeAction = NativeMethods.GetForegroundWindow();
                     switch (action)
                     {
                         case WaitAction wait: await DelayWithPauseAsync(wait.Milliseconds, token); break;
@@ -60,9 +83,16 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                         case TypeTextAction text: PostText(hwnd, text.Text); ReportClassicKeyboard(); break;
                         case KeyPressAction key: PostKey(hwnd, key.KeyName); ReportClassicKeyboard(); break;
                     }
+                    RestoreUserForegroundIfStolen(hwnd, foregroundBeforeAction);
                 }
+                if (stoppedBySchedule) break;
+                iteration++;
+                if (repeatMode != RepeatModes.Count) await Task.Delay(1, token);
             }
-            StatusChanged?.Invoke(this, L($"Workflow completed in background - {repeatCount} run(s)", $"Đã hoàn tất quy trình trong nền - {repeatCount} lần chạy"));
+            var completedRuns = Math.Max(0, iteration - 1);
+            StatusChanged?.Invoke(this, stoppedBySchedule
+                ? L($"Schedule reached - stopped after {completedRuns} complete run(s)", $"Đã đến lịch dừng - kết thúc sau {completedRuns} lần chạy hoàn chỉnh")
+                : L($"Workflow completed in background - {completedRuns} run(s)", $"Đã hoàn tất quy trình trong nền - {completedRuns} lần chạy"));
         }
         catch (OperationCanceledException) { StatusChanged?.Invoke(this, "Workflow stopped"); }
         finally
@@ -73,6 +103,14 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             _runCts?.Dispose();
             _runCts = null;
         }
+    }
+
+    private void RestoreUserForegroundIfStolen(IntPtr target, IntPtr previousForeground)
+    {
+        if (previousForeground == IntPtr.Zero || previousForeground == target || !NativeMethods.IsWindow(previousForeground)) return;
+        if (NativeMethods.GetForegroundWindow() != target) return;
+        if (NativeMethods.SetForegroundWindow(previousForeground))
+            StatusChanged?.Invoke(this, L("Target tried to take focus - your active window was restored", "Cửa sổ đích đã thử lấy focus - cửa sổ bạn đang dùng đã được khôi phục"));
     }
 
     private void DispatchClick(IntPtr root, PointerAction action, bool twice, string playbackMode)

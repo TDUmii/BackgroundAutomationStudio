@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -59,6 +60,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         StopRunCommand = new RelayCommand(_ => _runner.Stop(), _ => IsRunning);
         EditCommand = new RelayCommand(_ => EditSelected(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         DeleteCommand = new RelayCommand(_ => DeleteSelected(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
+        ClearAllCommand = new RelayCommand(_ => ClearAll(), _ => Actions.Count > 0 && !IsRecording && !IsRunning);
         DuplicateCommand = new RelayCommand(_ => DuplicateSelected(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         MoveUpCommand = new RelayCommand(_ => MoveSelected(-1), _ => CanMove(-1));
         MoveDownCommand = new RelayCommand(_ => MoveSelected(1), _ => CanMove(1));
@@ -74,6 +76,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string ProjectTitle => Project.Name + (IsModified ? " *" : string.Empty);
     public string TargetSummary => Project.Target is null ? LocalizationService.Get("NoTarget") : $"{Project.Target.ProcessName} - {Project.Target.WindowTitle}";
     public int RepeatCount { get => Project.RepeatCount; set { var safe = Math.Clamp(value, 1, 999); if (Project.RepeatCount == safe) return; Project.RepeatCount = safe; OnPropertyChanged(); MarkModified(); } }
+    public string RepeatMode { get => RepeatModes.Normalize(Project.RepeatMode); set { var safe = RepeatModes.Normalize(value); if (Project.RepeatMode == safe) return; Project.RepeatMode = safe; OnPropertyChanged(); MarkModified(); } }
+    public int RepeatDurationMinutes { get => Project.RepeatDurationMinutes; set { var safe = Math.Clamp(value, 1, 10080); if (Project.RepeatDurationMinutes == safe) return; Project.RepeatDurationMinutes = safe; OnPropertyChanged(); MarkModified(); } }
+    public string StopAtTime { get => Project.StopAtTime; set { var safe = value?.Trim() ?? string.Empty; if (Project.StopAtTime == safe) return; Project.StopAtTime = safe; OnPropertyChanged(); MarkModified(); } }
     public string ScriptText { get => _scriptText; set { if (!SetProperty(ref _scriptText, value) || _syncingScript) return; ApplyScript(value); } }
     public string ScriptErrors { get => _scriptErrors; private set => SetProperty(ref _scriptErrors, value); }
     public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
@@ -99,6 +104,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ICommand StopRunCommand { get; }
     public ICommand EditCommand { get; }
     public ICommand DeleteCommand { get; }
+    public ICommand ClearAllCommand { get; }
     public ICommand DuplicateCommand { get; }
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
@@ -148,7 +154,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (!await ConfirmContinueAsync()) return;
         DetachCollection(Actions); Project = new AutomationProject(); AttachCollection(Actions);
         _projectPath = null; SelectedAction = null; IsModified = false; ScriptErrors = string.Empty; SyncScriptFromVisual();
-        OnPropertyChanged(nameof(HasTarget)); OnPropertyChanged(nameof(RepeatCount)); StatusText = LocalizationService.Language == "vi" ? "Đã tạo dự án mới - Chọn cửa sổ đích" : "New project created - Select a target window";
+        NotifyScheduleChanged(); OnPropertyChanged(nameof(HasTarget)); StatusText = LocalizationService.Language == "vi" ? "Đã tạo dự án mới - Chọn cửa sổ đích" : "New project created - Select a target window";
     }
 
     private async Task OpenAsync()
@@ -159,7 +165,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var loaded = await _projectService.LoadAsync(path); if (loaded.Target is not null) _windowManager.Resolve(loaded.Target);
             DetachCollection(Actions); Project = loaded; AttachCollection(Actions);
-            _projectPath = path; IsModified = false; SelectedAction = null; SyncScriptFromVisual(); OnPropertyChanged(nameof(HasTarget)); OnPropertyChanged(nameof(TargetSummary)); OnPropertyChanged(nameof(RepeatCount));
+            _projectPath = path; IsModified = false; SelectedAction = null; SyncScriptFromVisual(); OnPropertyChanged(nameof(HasTarget)); OnPropertyChanged(nameof(TargetSummary)); NotifyScheduleChanged();
             StatusText = $"Opened {Path.GetFileName(path)}";
         }
         catch (Exception ex) { _dialogs.Error("Could not open project", ex.Message); }
@@ -224,7 +230,26 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     private void CancelRecording() { _recorder.Cancel(); _recordTimer.Stop(); IsRecording = false; RecordingTime = "00:00:00"; StatusText = LocalizationService.Language == "vi" ? "Đã hủy ghi - quy trình trước đó được giữ nguyên" : "Recording cancelled - previous workflow preserved"; }
-    private async Task RunAsync() { if (Project.Target is null) return; IsRunning = true; IsPaused = false; try { await _runner.RunAsync(Project.Target, Actions.ToList(), RepeatCount); } catch (Exception ex) { _dialogs.Error(LocalizationService.Language == "vi" ? "Đã dừng quy trình" : "Workflow stopped", ex.Message); StatusText = LocalizationService.Language == "vi" ? "Quy trình thất bại" : "Workflow failed"; } finally { IsRunning = false; IsPaused = false; } }
+    private async Task RunAsync()
+    {
+        if (Project.Target is null) return;
+        IsRunning = true;
+        IsPaused = false;
+        try { await _runner.RunAsync(Project.Target, Actions.ToList(), CreateRunOptions()); }
+        catch (Exception ex) { _dialogs.Error(LocalizationService.Language == "vi" ? "Đã dừng quy trình" : "Workflow stopped", ex.Message); StatusText = LocalizationService.Language == "vi" ? "Quy trình thất bại" : "Workflow failed"; }
+        finally { IsRunning = false; IsPaused = false; }
+    }
+
+    private PlaybackRunOptions CreateRunOptions()
+    {
+        var mode = RepeatModes.Normalize(RepeatMode);
+        if (mode == RepeatModes.Count) return PlaybackRunOptions.Count(RepeatCount);
+        if (mode == RepeatModes.Infinite) return new(mode, RepeatCount, TimeSpan.Zero, null);
+        if (mode == RepeatModes.Duration) return new(mode, RepeatCount, TimeSpan.FromMinutes(RepeatDurationMinutes), null);
+        if (!TimeSpan.TryParseExact(StopAtTime, [@"h\:mm", @"hh\:mm"], CultureInfo.InvariantCulture, out var clock) || clock >= TimeSpan.FromDays(1))
+            throw new InvalidOperationException(LocalizationService.Language == "vi" ? "Giờ dừng không hợp lệ. Hãy nhập theo dạng HH:mm, ví dụ 23:30." : "Invalid stop time. Use HH:mm, for example 23:30.");
+        return new(mode, RepeatCount, TimeSpan.Zero, PlaybackRunOptions.GetNextStopAt(clock, DateTimeOffset.Now));
+    }
     private void TogglePause() { if (_runner.IsPaused) { _runner.Resume(); IsPaused = false; } else { _runner.Pause(); IsPaused = true; } }
 
     private void AddAction(string type, bool? above)
@@ -236,6 +261,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void EditSelected() { if (SelectedAction is null) return; var edited = _dialogs.EditAction(SelectedAction, Project.Target); if (edited is null) return; var index = Actions.IndexOf(SelectedAction); Actions[index] = edited; SelectedAction = edited; }
     private void DeleteSelected() { if (SelectedAction is null) return; var index = Actions.IndexOf(SelectedAction); Actions.Remove(SelectedAction); SelectedAction = Actions.Count == 0 ? null : Actions[Math.Min(index, Actions.Count - 1)]; }
+    private void ClearAll()
+    {
+        var message = LocalizationService.Language == "vi" ? "Xóa toàn bộ thao tác trong quy trình? Hành động này không thể hoàn tác." : "Delete every action in this workflow? This cannot be undone.";
+        var title = LocalizationService.Language == "vi" ? "Xóa tất cả thao tác" : "Clear all actions";
+        if (MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        Actions.Clear();
+        SelectedAction = null;
+        StatusText = LocalizationService.Language == "vi" ? "Đã xóa toàn bộ thao tác" : "All workflow actions were cleared";
+    }
     private void DuplicateSelected() { if (SelectedAction is null) return; var clone = SelectedAction.Clone(); var index = Actions.IndexOf(SelectedAction) + 1; Actions.Insert(index, clone); SelectedAction = clone; }
     private bool CanMove(int delta) => SelectedAction is not null && !IsRecording && !IsRunning && Actions.IndexOf(SelectedAction) + delta >= 0 && Actions.IndexOf(SelectedAction) + delta < Actions.Count;
     private void MoveSelected(int delta) { if (SelectedAction is not null) MoveAction(Actions.IndexOf(SelectedAction), Actions.IndexOf(SelectedAction) + delta); }
@@ -248,6 +282,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void SyncScriptFromVisual() { if (_syncingScript) return; _syncingScript = true; try { _scriptText = _scriptParser.Serialize(Actions); OnPropertyChanged(nameof(ScriptText)); ScriptErrors = string.Empty; } finally { _syncingScript = false; } }
     private void MarkModified() { if (!_syncingScript) IsModified = true; }
     private void RunnerOnCurrentActionChanged(object? sender, AutomationAction? current) => Application.Current.Dispatcher.Invoke(() => { foreach (var action in Actions) action.IsCurrent = action.Id == current?.Id; });
-    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, DuplicateCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
+    private void NotifyScheduleChanged() { OnPropertyChanged(nameof(RepeatMode)); OnPropertyChanged(nameof(RepeatCount)); OnPropertyChanged(nameof(RepeatDurationMinutes)); OnPropertyChanged(nameof(StopAtTime)); }
+    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, DuplicateCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
     public void Dispose() { _recordTimer.Stop(); _recorder.Dispose(); _runner.Stop(); if (_runner is IDisposable disposable) disposable.Dispose(); _windowPicker.Dispose(); }
 }

@@ -26,15 +26,15 @@ The workflow remains inspectable and editable in both a direct-manipulation list
 
 ## Operating Context
 
-The app runs visibly on Windows 10/11. Recording is always user initiated and observes real input in the selected target. Version 1.1 replays through a hybrid UI Automation and Win32 background engine without activating the target or moving the physical cursor. Projects are local JSON files.
+The app runs visibly on Windows 10/11. Recording is always user initiated and observes real input in the selected target. Version 1.2 replays through a focus-safe hybrid UI Automation and Win32 background engine without moving the physical cursor. Projects are local JSON files.
 
 ## Capabilities and Constraints
 
-Version 1.1 includes window selection and resolution, layout capture/restore, explicit recording, click and keyboard capture without mouse movement, workflow editing, DSL synchronization and validation, hybrid background playback, Automatic/UI Automation/Win32 compatibility modes, repeat count, English/Vietnamese UI, a configurable global Run/Stop hotkey, diagnostic playback status, and project save/load. It intentionally excludes fully hidden-window automation, schedulers, multiple tasks, image/OCR/pixel logic, complex conditions, cloud, accounts, databases, plugins, process injection, drivers, and anti-cheat bypass.
+Version 1.2 includes window selection and resolution, layout capture/restore, explicit recording, click and keyboard capture without mouse movement, workflow editing, DSL synchronization and validation, focus-safe hybrid background playback, Automatic/UI Automation/Win32 compatibility modes, count/infinite/duration/clock-time schedules, Clear all, English/Vietnamese UI, a configurable global Run/Stop hotkey, diagnostic playback status, and project save/load. It intentionally excludes fully hidden-window automation, multiple concurrent tasks, calendar recurrence, image/OCR/pixel logic, complex conditions, cloud, accounts, databases, plugins, process injection, drivers, and anti-cheat bypass.
 
 ## Brand Commitments
 
-The product name is Background Automation Studio. The version label is “Version 1.1 - Background Input & Settings”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
+The product name is Background Automation Studio. The version label is “Version 1.2 - Focus-safe Scheduling”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
 
 ## Evidence on Hand
 

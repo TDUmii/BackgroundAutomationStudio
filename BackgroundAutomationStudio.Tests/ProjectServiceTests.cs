@@ -15,7 +15,10 @@ public sealed class ProjectServiceTests
             var project = new AutomationProject
             {
                 Name = "Acceptance",
+                RepeatMode = RepeatModes.Duration,
                 RepeatCount = 5,
+                RepeatDurationMinutes = 45,
+                StopAtTime = "21:30",
                 Target = new WindowTarget { ProcessName = "notepad.exe", ProcessId = 42, WindowTitle = "Test.txt - Notepad", WindowTitleContains = "Notepad", WindowClassName = "Notepad", RecordedX = 200, RecordedY = 100, RecordedWidth = 1200, RecordedHeight = 700, LastKnownHwnd = 12345 },
                 Actions = [new ClickAction { ClientX = 400, ClientY = 250 }, new TypeTextAction { Text = "Hello Umi" }, new KeyPressAction { KeyName = "ENTER", Enabled = false }]
             };
@@ -24,10 +27,28 @@ public sealed class ProjectServiceTests
             var loaded = await service.LoadAsync(path);
             Assert.Equal(1, loaded.Version);
             Assert.Equal(5, loaded.RepeatCount);
+            Assert.Equal(RepeatModes.Duration, loaded.RepeatMode);
+            Assert.Equal(45, loaded.RepeatDurationMinutes);
+            Assert.Equal("21:30", loaded.StopAtTime);
             Assert.Equal(1200, loaded.Target!.RecordedWidth);
             Assert.IsType<ClickAction>(loaded.Actions[0]);
             Assert.Equal("Hello Umi", Assert.IsType<TypeTextAction>(loaded.Actions[1]).Text);
             Assert.False(loaded.Actions[2].Enabled);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task Load_NormalizesInvalidScheduleValues()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"bas-{Guid.NewGuid():N}.json");
+        try
+        {
+            await File.WriteAllTextAsync(path, "{\"version\":1,\"repeatMode\":\"Other\",\"repeatDurationMinutes\":0,\"stopAtTime\":\"29:90\",\"actions\":[]}");
+            var loaded = await new ProjectService().LoadAsync(path);
+            Assert.Equal(RepeatModes.Count, loaded.RepeatMode);
+            Assert.Equal(1, loaded.RepeatDurationMinutes);
+            Assert.Equal("23:00", loaded.StopAtTime);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }

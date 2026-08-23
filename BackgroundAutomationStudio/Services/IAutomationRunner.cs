@@ -8,7 +8,7 @@ public interface IAutomationRunner
     bool IsPaused { get; }
     event EventHandler<AutomationAction?>? CurrentActionChanged;
     event EventHandler<string>? StatusChanged;
-    Task RunAsync(WindowTarget target, IReadOnlyList<AutomationAction> actions, int repeatCount = 1, CancellationToken cancellationToken = default);
+    Task RunAsync(WindowTarget target, IReadOnlyList<AutomationAction> actions, PlaybackRunOptions options, CancellationToken cancellationToken = default);
     void Pause();
     void Resume();
     void Stop();
