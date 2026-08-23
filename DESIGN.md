@@ -197,6 +197,12 @@ The recording banner uses a dark red surface and muted red border. An eight-pixe
 
 Settings presents three full-width, text-led choices: Automatic, Modern controls through UI Automation, and Classic Win32 messages. Each choice includes its operational consequence, uses the established graphite selection treatment, and remains keyboard focusable. Automatic is the default. Compatibility copy distinguishes a covered window from minimized and fully hidden states so the interface does not promise universal hidden-window automation.
 
+During a run, the activation shield prevents the target from taking foreground focus and the status bar reports shield, fallback, and focus-guard events in plain language. Playback never restores the target's recorded desktop position. A visible target can be dragged while running because every action resolves its client-relative coordinate against the current window position.
+
+### Editor History
+
+Undo and Redo are compact neutral controls beside Add action and are repeated in the Edit menu. They use standard Windows gestures: `Ctrl+Z` for Undo, `Ctrl+Y` and `Ctrl+Shift+Z` for Redo. History covers visual edits, script edits, reordering, deletion, clearing, and completed recording batches while preserving stable action IDs. Running and recording temporarily disable history navigation.
+
 ### Run Schedule
 
 The capture-and-playback panel uses one dark native-feeling selector for four mutually exclusive schedules: a fixed repeat count, infinite until stopped, a duration in minutes, or a clock stop time. Only the field required by the selected schedule remains visible. The dropdown, selected state, keyboard focus, and popup items use the same graphite surfaces and blue focus treatment as the rest of the studio.

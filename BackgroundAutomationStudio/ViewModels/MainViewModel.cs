@@ -22,6 +22,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly ScriptParser _scriptParser;
     private readonly ProjectService _projectService;
     private readonly IDialogService _dialogs;
+    private readonly WorkflowHistory _workflowHistory = new();
     private readonly DispatcherTimer _recordTimer;
     private AutomationProject _project = new();
     private AutomationAction? _selectedAction;
@@ -35,6 +36,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _isRunning;
     private bool _isPaused;
     private bool _syncingScript;
+    private bool _suspendWorkflowHistory;
     private string? _projectPath;
     private RecordChoice _recordChoice;
 
@@ -61,6 +63,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         EditCommand = new RelayCommand(_ => EditSelected(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         DeleteCommand = new RelayCommand(_ => DeleteSelected(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         ClearAllCommand = new RelayCommand(_ => ClearAll(), _ => Actions.Count > 0 && !IsRecording && !IsRunning);
+        UndoCommand = new RelayCommand(_ => UndoWorkflow(), _ => _workflowHistory.CanUndo && !IsRecording && !IsRunning);
+        RedoCommand = new RelayCommand(_ => RedoWorkflow(), _ => _workflowHistory.CanRedo && !IsRecording && !IsRunning);
         DuplicateCommand = new RelayCommand(_ => DuplicateSelected(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         MoveUpCommand = new RelayCommand(_ => MoveSelected(-1), _ => CanMove(-1));
         MoveDownCommand = new RelayCommand(_ => MoveSelected(1), _ => CanMove(1));
@@ -68,6 +72,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         InsertBelowCommand = new RelayCommand(p => AddAction((string?)p ?? "Wait", false), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         AddActionCommand = new RelayCommand(p => AddAction((string?)p ?? "Wait", null), _ => !IsRecording && !IsRunning);
         SyncScriptFromVisual();
+        _workflowHistory.Reset(Actions);
     }
 
     public AutomationProject Project { get => _project; private set { if (SetProperty(ref _project, value)) { OnPropertyChanged(nameof(Actions)); OnPropertyChanged(nameof(ProjectTitle)); OnPropertyChanged(nameof(TargetSummary)); } } }
@@ -105,6 +110,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ICommand EditCommand { get; }
     public ICommand DeleteCommand { get; }
     public ICommand ClearAllCommand { get; }
+    public ICommand UndoCommand { get; }
+    public ICommand RedoCommand { get; }
     public ICommand DuplicateCommand { get; }
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
@@ -154,6 +161,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (!await ConfirmContinueAsync()) return;
         DetachCollection(Actions); Project = new AutomationProject(); AttachCollection(Actions);
         _projectPath = null; SelectedAction = null; IsModified = false; ScriptErrors = string.Empty; SyncScriptFromVisual();
+        _workflowHistory.Reset(Actions);
         NotifyScheduleChanged(); OnPropertyChanged(nameof(HasTarget)); StatusText = LocalizationService.Language == "vi" ? "Đã tạo dự án mới - Chọn cửa sổ đích" : "New project created - Select a target window";
     }
 
@@ -166,6 +174,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var loaded = await _projectService.LoadAsync(path); if (loaded.Target is not null) _windowManager.Resolve(loaded.Target);
             DetachCollection(Actions); Project = loaded; AttachCollection(Actions);
             _projectPath = path; IsModified = false; SelectedAction = null; SyncScriptFromVisual(); OnPropertyChanged(nameof(HasTarget)); OnPropertyChanged(nameof(TargetSummary)); NotifyScheduleChanged();
+            _workflowHistory.Reset(Actions); RaiseCommandStates();
             StatusText = $"Opened {Path.GetFileName(path)}";
         }
         catch (Exception ex) { _dialogs.Error("Could not open project", ex.Message); }
@@ -225,7 +234,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void StopRecording()
     {
         var recorded = _recorder.Stop(); _recordTimer.Stop(); IsRecording = false;
-        if (_recordChoice == RecordChoice.Replace) ReplaceActions(recorded); else foreach (var action in recorded) Actions.Add(action);
+        if (_recordChoice == RecordChoice.Replace) ReplaceActions(recorded);
+        else
+        {
+            _suspendWorkflowHistory = true;
+            try { foreach (var action in recorded) Actions.Add(action); }
+            finally { _suspendWorkflowHistory = false; }
+            CaptureWorkflowHistory();
+        }
         MarkModified(); StatusText = LocalizationService.Language == "vi" ? $"Đã dừng ghi - nhận {recorded.Count} thao tác" : $"Recording stopped - {recorded.Count} actions captured";
     }
 
@@ -270,19 +286,39 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectedAction = null;
         StatusText = LocalizationService.Language == "vi" ? "Đã xóa toàn bộ thao tác" : "All workflow actions were cleared";
     }
+    private void UndoWorkflow() { if (_workflowHistory.TryUndo(out var actions)) RestoreWorkflowSnapshot(actions, LocalizationService.Language == "vi" ? "Đã quay lại thay đổi trước" : "Undid workflow change"); }
+    private void RedoWorkflow() { if (_workflowHistory.TryRedo(out var actions)) RestoreWorkflowSnapshot(actions, LocalizationService.Language == "vi" ? "Đã áp dụng lại thay đổi" : "Redid workflow change"); }
+    private void RestoreWorkflowSnapshot(IEnumerable<AutomationAction> actions, string status)
+    {
+        _suspendWorkflowHistory = true;
+        try
+        {
+            DetachCollection(Actions);
+            Project.Actions = new(actions);
+            OnPropertyChanged(nameof(Actions));
+            AttachCollection(Actions);
+            SelectedAction = null;
+            SyncScriptFromVisual();
+            IsModified = true;
+            StatusText = status;
+        }
+        finally { _suspendWorkflowHistory = false; }
+        RaiseCommandStates();
+    }
     private void DuplicateSelected() { if (SelectedAction is null) return; var clone = SelectedAction.Clone(); var index = Actions.IndexOf(SelectedAction) + 1; Actions.Insert(index, clone); SelectedAction = clone; }
     private bool CanMove(int delta) => SelectedAction is not null && !IsRecording && !IsRunning && Actions.IndexOf(SelectedAction) + delta >= 0 && Actions.IndexOf(SelectedAction) + delta < Actions.Count;
     private void MoveSelected(int delta) { if (SelectedAction is not null) MoveAction(Actions.IndexOf(SelectedAction), Actions.IndexOf(SelectedAction) + delta); }
 
-    private void ReplaceActions(IEnumerable<AutomationAction> actions) { DetachCollection(Actions); Project.Actions = new(actions); OnPropertyChanged(nameof(Actions)); AttachCollection(Actions); SelectedAction = null; SyncScriptFromVisual(); RaiseCommandStates(); }
+    private void ReplaceActions(IEnumerable<AutomationAction> actions) { DetachCollection(Actions); Project.Actions = new(actions); OnPropertyChanged(nameof(Actions)); AttachCollection(Actions); SelectedAction = null; SyncScriptFromVisual(); CaptureWorkflowHistory(); RaiseCommandStates(); }
     private void AttachCollection(ObservableCollection<AutomationAction> actions) { actions.CollectionChanged += ActionsOnCollectionChanged; foreach (var action in actions) action.PropertyChanged += ActionOnPropertyChanged; }
     private void DetachCollection(ObservableCollection<AutomationAction> actions) { actions.CollectionChanged -= ActionsOnCollectionChanged; foreach (var action in actions) action.PropertyChanged -= ActionOnPropertyChanged; }
-    private void ActionsOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) { if (e.OldItems is not null) foreach (AutomationAction action in e.OldItems) action.PropertyChanged -= ActionOnPropertyChanged; if (e.NewItems is not null) foreach (AutomationAction action in e.NewItems) action.PropertyChanged += ActionOnPropertyChanged; MarkModified(); SyncScriptFromVisual(); RaiseCommandStates(); }
-    private void ActionOnPropertyChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(AutomationAction.IsCurrent)) return; MarkModified(); SyncScriptFromVisual(); }
+    private void ActionsOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) { if (e.OldItems is not null) foreach (AutomationAction action in e.OldItems) action.PropertyChanged -= ActionOnPropertyChanged; if (e.NewItems is not null) foreach (AutomationAction action in e.NewItems) action.PropertyChanged += ActionOnPropertyChanged; MarkModified(); SyncScriptFromVisual(); CaptureWorkflowHistory(); RaiseCommandStates(); }
+    private void ActionOnPropertyChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(AutomationAction.IsCurrent)) return; MarkModified(); SyncScriptFromVisual(); CaptureWorkflowHistory(); }
     private void SyncScriptFromVisual() { if (_syncingScript) return; _syncingScript = true; try { _scriptText = _scriptParser.Serialize(Actions); OnPropertyChanged(nameof(ScriptText)); ScriptErrors = string.Empty; } finally { _syncingScript = false; } }
     private void MarkModified() { if (!_syncingScript) IsModified = true; }
+    private void CaptureWorkflowHistory() { if (!_suspendWorkflowHistory && _workflowHistory.Capture(Actions)) RaiseCommandStates(); }
     private void RunnerOnCurrentActionChanged(object? sender, AutomationAction? current) => Application.Current.Dispatcher.Invoke(() => { foreach (var action in Actions) action.IsCurrent = action.Id == current?.Id; });
     private void NotifyScheduleChanged() { OnPropertyChanged(nameof(RepeatMode)); OnPropertyChanged(nameof(RepeatCount)); OnPropertyChanged(nameof(RepeatDurationMinutes)); OnPropertyChanged(nameof(StopAtTime)); }
-    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, DuplicateCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
+    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, UndoCommand, RedoCommand, DuplicateCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
     public void Dispose() { _recordTimer.Stop(); _recorder.Dispose(); _runner.Stop(); if (_runner is IDisposable disposable) disposable.Dispose(); _windowPicker.Dispose(); }
 }

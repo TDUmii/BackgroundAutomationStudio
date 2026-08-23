@@ -23,10 +23,14 @@ public static class NativeMethods
     public const uint MapvkVkToVsc = 0;
     public const uint SwpNoZOrder = 0x0004;
     public const uint SwpNoActivate = 0x0010;
+    public const uint SwpNoMove = 0x0002;
+    public const uint SwpNoSize = 0x0001;
+    public const uint SwpFrameChanged = 0x0020;
     public const int SwRestore = 9;
     public const int SwShowNoActivate = 4;
     public const int GwlExStyle = -20;
     public const long WsExToolWindow = 0x00000080L;
+    public const long WsExNoActivate = 0x08000000L;
     public const int SmCxDoubleclk = 36;
     public const int SmCyDoubleclk = 37;
 
@@ -91,6 +95,8 @@ public static class NativeMethods
     public static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
     [DllImport("user32.dll")]
     public static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr newValue);
     [DllImport("user32.dll")]
     public static extern uint GetDoubleClickTime();
     [DllImport("user32.dll")]

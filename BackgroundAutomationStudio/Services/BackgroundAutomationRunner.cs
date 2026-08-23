@@ -45,19 +45,24 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         var token = _runCts.Token;
         IsRunning = true;
         _pauseGate.Set();
+        using var activationShield = new ActivationShield(hwnd);
+        using var foregroundGuardCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var foregroundGuardTask = GuardForegroundContinuouslyAsync(hwnd, foregroundGuardCts.Token);
         try
         {
             var wasMinimized = NativeMethods.IsIconic(hwnd);
-            var needsLayoutRestore = wasMinimized || !_windowManager.IsLayoutCurrent(target, hwnd);
-            if (needsLayoutRestore)
+            if (wasMinimized)
             {
                 var foregroundBeforeRestore = NativeMethods.GetForegroundWindow();
-                StatusChanged?.Invoke(this, L("Restoring target layout without activation...", "Đang khôi phục bố cục cửa sổ đích mà không kích hoạt..."));
-                _windowManager.RestoreLayout(target, hwnd);
+                StatusChanged?.Invoke(this, L("Showing minimized target without activation...", "Đang hiện cửa sổ đích đã thu nhỏ mà không kích hoạt..."));
+                NativeMethods.ShowWindow(hwnd, NativeMethods.SwShowNoActivate);
                 RestoreUserForegroundIfStolen(hwnd, foregroundBeforeRestore);
                 await Task.Delay(150, token);
-                if (wasMinimized) StatusChanged?.Invoke(this, L("Target was minimized - shown without activation", "Cửa sổ đích đã thu nhỏ - đã hiện lại mà không kích hoạt"));
+                StatusChanged?.Invoke(this, L("Target was minimized - shown without moving its saved position", "Cửa sổ đích đã thu nhỏ - đã hiện lại mà không đổi vị trí đã lưu"));
             }
+            StatusChanged?.Invoke(this, activationShield.IsActive
+                ? L("Activation shield active - target cannot take foreground focus", "Đã bật lá chắn kích hoạt - cửa sổ đích không thể lấy focus phía trước")
+                : L("Activation shield unavailable - foreground recovery remains active", "Không thể bật lá chắn kích hoạt - vẫn dùng khôi phục cửa sổ phía trước"));
 
             long iteration = 1;
             var stoppedBySchedule = false;
@@ -73,7 +78,6 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                     var iterationLabel = repeatMode == RepeatModes.Count ? $"{iteration}/{repeatCount}" : $"{iteration}/∞";
                     StatusChanged?.Invoke(this, L($"Run {iterationLabel} - {action.ActionType}", $"Lần chạy {iterationLabel} - {action.ActionType}"));
                     if (action.DelayBefore > 0) await DelayWithPauseAsync(action.DelayBefore, token);
-                    var foregroundBeforeAction = NativeMethods.GetForegroundWindow();
                     switch (action)
                     {
                         case WaitAction wait: await DelayWithPauseAsync(wait.Milliseconds, token); break;
@@ -83,7 +87,6 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                         case TypeTextAction text: PostText(hwnd, text.Text); ReportClassicKeyboard(); break;
                         case KeyPressAction key: PostKey(hwnd, key.KeyName); ReportClassicKeyboard(); break;
                     }
-                    RestoreUserForegroundIfStolen(hwnd, foregroundBeforeAction);
                 }
                 if (stoppedBySchedule) break;
                 iteration++;
@@ -97,6 +100,8 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         catch (OperationCanceledException) { StatusChanged?.Invoke(this, "Workflow stopped"); }
         finally
         {
+            foregroundGuardCts.Cancel();
+            try { await foregroundGuardTask; } catch (OperationCanceledException) { }
             CurrentActionChanged?.Invoke(this, null);
             IsRunning = false;
             _pauseGate.Set();
@@ -134,6 +139,19 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         StatusChanged?.Invoke(this, playbackMode == PlaybackModes.Automatic
             ? L("No modern control found - Classic Win32 message sent", "Không tìm thấy điều khiển hiện đại - đã gửi thông điệp Win32 cổ điển")
             : L("Classic Win32 click message sent in background", "Đã gửi thông điệp nhấp Win32 cổ điển trong nền"));
+    }
+
+    private async Task GuardForegroundContinuouslyAsync(IntPtr target, CancellationToken token)
+    {
+        var userForeground = NativeMethods.GetForegroundWindow();
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            var current = NativeMethods.GetForegroundWindow();
+            if (current == target) RestoreUserForegroundIfStolen(target, userForeground);
+            else if (current != IntPtr.Zero && NativeMethods.IsWindow(current)) userForeground = current;
+            await Task.Delay(10, token);
+        }
     }
 
     private void DispatchRightClick(IntPtr root, RightClickAction action)
@@ -292,6 +310,34 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     }
 
     private static string L(string english, string vietnamese) => LocalizationService.Language == "vi" ? vietnamese : english;
+
+    private sealed class ActivationShield : IDisposable
+    {
+        private readonly IntPtr _hwnd;
+        private readonly IntPtr _originalStyle;
+        public bool IsActive { get; }
+
+        public ActivationShield(IntPtr hwnd)
+        {
+            _hwnd = hwnd;
+            _originalStyle = NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GwlExStyle);
+            var shieldedStyle = new IntPtr(_originalStyle.ToInt64() | NativeMethods.WsExNoActivate);
+            if (shieldedStyle == _originalStyle) { IsActive = true; return; }
+            var previous = NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GwlExStyle, shieldedStyle);
+            if (previous == IntPtr.Zero && _originalStyle != IntPtr.Zero) return;
+            NativeMethods.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                NativeMethods.SwpNoMove | NativeMethods.SwpNoSize | NativeMethods.SwpNoZOrder | NativeMethods.SwpNoActivate | NativeMethods.SwpFrameChanged);
+            IsActive = true;
+        }
+
+        public void Dispose()
+        {
+            if (!IsActive || !NativeMethods.IsWindow(_hwnd)) return;
+            NativeMethods.SetWindowLongPtr(_hwnd, NativeMethods.GwlExStyle, _originalStyle);
+            NativeMethods.SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                NativeMethods.SwpNoMove | NativeMethods.SwpNoSize | NativeMethods.SwpNoZOrder | NativeMethods.SwpNoActivate | NativeMethods.SwpFrameChanged);
+        }
+    }
 
     public void Dispose() { Stop(); _pauseGate.Dispose(); }
 }
