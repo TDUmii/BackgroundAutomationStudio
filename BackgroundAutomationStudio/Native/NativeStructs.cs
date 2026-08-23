@@ -54,3 +54,38 @@ public struct KBDLLHOOKSTRUCT
     public uint Time;
     public UIntPtr ExtraInfo;
 }
+
+[StructLayout(LayoutKind.Sequential)]
+public struct INPUT
+{
+    public uint Type;
+    public INPUTUNION Data;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct INPUTUNION
+{
+    [FieldOffset(0)] public MOUSEINPUT Mouse;
+    [FieldOffset(0)] public KEYBDINPUT Keyboard;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct MOUSEINPUT
+{
+    public int X;
+    public int Y;
+    public uint MouseData;
+    public uint Flags;
+    public uint Time;
+    public UIntPtr ExtraInfo;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct KEYBDINPUT
+{
+    public ushort VirtualKey;
+    public ushort ScanCode;
+    public uint Flags;
+    public uint Time;
+    public UIntPtr ExtraInfo;
+}

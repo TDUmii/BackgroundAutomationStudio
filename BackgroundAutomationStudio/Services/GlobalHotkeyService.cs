@@ -6,11 +6,13 @@ namespace BackgroundAutomationStudio.Services;
 
 public sealed class GlobalHotkeyService : IDisposable
 {
-    private const int Id = 0xB451;
     private const int WmHotkey = 0x0312;
+    private readonly int _id;
     private IntPtr _hwnd;
     private HwndSource? _source;
     public event EventHandler? Pressed;
+
+    public GlobalHotkeyService(int id = 0xB451) => _id = id;
 
     public bool Register(IntPtr hwnd, string hotkey)
     {
@@ -19,20 +21,20 @@ public sealed class GlobalHotkeyService : IDisposable
         _hwnd = hwnd;
         _source = HwndSource.FromHwnd(hwnd);
         _source?.AddHook(WndProc);
-        if (NativeMethods.RegisterHotKey(hwnd, Id, modifiers, key)) return true;
+        if (NativeMethods.RegisterHotKey(hwnd, _id, modifiers, key)) return true;
         _source?.RemoveHook(WndProc); _source = null; _hwnd = IntPtr.Zero;
         return false;
     }
 
     private IntPtr WndProc(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (message == WmHotkey && wParam.ToInt32() == Id) { handled = true; Pressed?.Invoke(this, EventArgs.Empty); }
+        if (message == WmHotkey && wParam.ToInt32() == _id) { handled = true; Pressed?.Invoke(this, EventArgs.Empty); }
         return IntPtr.Zero;
     }
 
     public void Unregister()
     {
-        if (_hwnd != IntPtr.Zero) NativeMethods.UnregisterHotKey(_hwnd, Id);
+        if (_hwnd != IntPtr.Zero) NativeMethods.UnregisterHotKey(_hwnd, _id);
         _source?.RemoveHook(WndProc); _source = null; _hwnd = IntPtr.Zero;
     }
 

@@ -11,6 +11,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     private readonly Func<string> _playbackModeProvider;
     private readonly ManualResetEventSlim _pauseGate = new(true);
     private CancellationTokenSource? _runCts;
+    private volatile bool _autoFocusPaused;
 
     public BackgroundAutomationRunner(IWindowManager windowManager, Func<string>? playbackModeProvider = null)
     {
@@ -19,7 +20,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     }
 
     public bool IsRunning { get; private set; }
-    public bool IsPaused => IsRunning && !_pauseGate.IsSet;
+    public bool IsPaused => IsRunning && (!_pauseGate.IsSet || _autoFocusPaused);
     public event EventHandler<AutomationAction?>? CurrentActionChanged;
     public event EventHandler<string>? StatusChanged;
 
@@ -31,7 +32,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         if (hwnd == IntPtr.Zero) throw new InvalidOperationException("Target window was not found. Open it or use Select window again.");
         if (!NativeMethods.IsWindowVisible(hwnd)) throw new InvalidOperationException(L("The target is hidden. Show its window before running the workflow.", "Cửa sổ đích đang bị ẩn. Hãy hiển thị cửa sổ trước khi chạy quy trình."));
         var repeatMode = RepeatModes.Normalize(options.Mode);
-        var repeatCount = Math.Clamp(options.RepeatCount, 1, 999);
+        var repeatCount = Math.Clamp(options.RepeatCount, 1, 1_000_000);
         var deadline = repeatMode switch
         {
             RepeatModes.Duration when options.Duration > TimeSpan.Zero => DateTimeOffset.Now.Add(options.Duration),
@@ -41,13 +42,22 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             _ => (DateTimeOffset?)null
         };
         var playbackMode = PlaybackModes.Normalize(_playbackModeProvider());
+        var gameForeground = playbackMode == PlaybackModes.GameForeground;
+        var gameBackground = playbackMode == PlaybackModes.GameBackground;
         _runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var token = _runCts.Token;
         IsRunning = true;
         _pauseGate.Set();
-        using var activationShield = new ActivationShield(hwnd);
-        using var foregroundGuardCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-        var foregroundGuardTask = GuardForegroundContinuouslyAsync(hwnd, foregroundGuardCts.Token);
+        _autoFocusPaused = false;
+        using var activationShield = gameForeground ? null : new ActivationShield(hwnd);
+        using var foregroundGuardCts = gameForeground ? null : CancellationTokenSource.CreateLinkedTokenSource(token);
+        var foregroundGuardTask = foregroundGuardCts is null ? null : GuardForegroundContinuouslyAsync(hwnd, foregroundGuardCts.Token);
+        Func<CancellationToken, Task> waitUntilReady = gameForeground
+            ? readyToken => WaitForGameForegroundAsync(hwnd, readyToken)
+            : WaitWhilePausedAsync;
+        Func<bool> isReady = gameForeground
+            ? () => _pauseGate.IsSet && IsTargetWindow(hwnd, NativeMethods.GetForegroundWindow())
+            : () => _pauseGate.IsSet;
         try
         {
             var wasMinimized = NativeMethods.IsIconic(hwnd);
@@ -60,9 +70,14 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                 await Task.Delay(150, token);
                 StatusChanged?.Invoke(this, L("Target was minimized - shown without moving its saved position", "Cửa sổ đích đã thu nhỏ - đã hiện lại mà không đổi vị trí đã lưu"));
             }
-            StatusChanged?.Invoke(this, activationShield.IsActive
-                ? L("Activation shield active - target cannot take foreground focus", "Đã bật lá chắn kích hoạt - cửa sổ đích không thể lấy focus phía trước")
-                : L("Activation shield unavailable - foreground recovery remains active", "Không thể bật lá chắn kích hoạt - vẫn dùng khôi phục cửa sổ phía trước"));
+            if (gameForeground)
+                StatusChanged?.Invoke(this, L("Game foreground mode - input starts only while the target is active", "Chế độ game phía trước - chỉ gửi input khi cửa sổ đích đang hoạt động"));
+            else if (gameBackground)
+                StatusChanged?.Invoke(this, L("Experimental game background mode - no focus activation; the game may ignore input", "Chế độ game nền thử nghiệm - không kích hoạt focus; game có thể bỏ qua input"));
+            else
+                StatusChanged?.Invoke(this, activationShield!.IsActive
+                    ? L("Activation shield active - target cannot take foreground focus", "Đã bật lá chắn kích hoạt - cửa sổ đích không thể lấy focus phía trước")
+                    : L("Activation shield unavailable - foreground recovery remains active", "Không thể bật lá chắn kích hoạt - vẫn dùng khôi phục cửa sổ phía trước"));
 
             long iteration = 1;
             var stoppedBySchedule = false;
@@ -72,20 +87,37 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                 foreach (var action in actions.Where(a => a.Enabled))
                 {
                     token.ThrowIfCancellationRequested();
-                    await WaitWhilePausedAsync(token);
+                    await waitUntilReady(token);
                     if (deadline is { } beforeAction && DateTimeOffset.Now >= beforeAction) { stoppedBySchedule = true; break; }
                     CurrentActionChanged?.Invoke(this, action);
                     var iterationLabel = repeatMode == RepeatModes.Count ? $"{iteration}/{repeatCount}" : $"{iteration}/∞";
                     StatusChanged?.Invoke(this, L($"Run {iterationLabel} - {action.ActionType}", $"Lần chạy {iterationLabel} - {action.ActionType}"));
-                    if (action.DelayBefore > 0) await DelayWithPauseAsync(action.DelayBefore, token);
-                    switch (action)
+                    if (action.DelayBefore > 0) await DelayWithPauseAsync(action.DelayBefore, waitUntilReady, token);
+                    if (action is WaitAction wait)
                     {
-                        case WaitAction wait: await DelayWithPauseAsync(wait.Milliseconds, token); break;
-                        case ClickAction click: DispatchClick(hwnd, click, false, playbackMode); break;
-                        case RightClickAction click: DispatchRightClick(hwnd, click); break;
-                        case DoubleClickAction click: DispatchClick(hwnd, click, true, playbackMode); break;
-                        case TypeTextAction text: PostText(hwnd, text.Text); ReportClassicKeyboard(); break;
-                        case KeyPressAction key: PostKey(hwnd, key.KeyName); ReportClassicKeyboard(); break;
+                        await DelayWithPauseAsync(wait.Milliseconds, waitUntilReady, token);
+                    }
+                    else if (gameForeground)
+                    {
+                        await GameInputDispatcher.DispatchAsync(hwnd, action, isReady, waitUntilReady, token);
+                        StatusChanged?.Invoke(this, L("Foreground game input sent - focus was not forced", "Đã gửi input game phía trước - không cưỡng ép focus"));
+                    }
+                    else if (gameBackground)
+                    {
+                        await DispatchTargetedGameActionAsync(hwnd, action, waitUntilReady, token);
+                    }
+                    else
+                    {
+                        switch (action)
+                        {
+                            case ClickAction click: DispatchClick(hwnd, click, false, playbackMode); break;
+                            case RightClickAction click: DispatchRightClick(hwnd, click); break;
+                            case DoubleClickAction click: DispatchClick(hwnd, click, true, playbackMode); break;
+                            case TypeTextAction text: PostText(hwnd, text.Text); ReportClassicKeyboard(); break;
+                            case KeyPressAction key: PostKey(hwnd, key.KeyName); ReportClassicKeyboard(); break;
+                            case KeyHoldAction hold: await PostKeyHoldAsync(hwnd, hold, waitUntilReady, token); break;
+                            case DragAction drag: await PostDragAsync(hwnd, drag, waitUntilReady, token); break;
+                        }
                     }
                 }
                 if (stoppedBySchedule) break;
@@ -95,15 +127,18 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             var completedRuns = Math.Max(0, iteration - 1);
             StatusChanged?.Invoke(this, stoppedBySchedule
                 ? L($"Schedule reached - stopped after {completedRuns} complete run(s)", $"Đã đến lịch dừng - kết thúc sau {completedRuns} lần chạy hoàn chỉnh")
-                : L($"Workflow completed in background - {completedRuns} run(s)", $"Đã hoàn tất quy trình trong nền - {completedRuns} lần chạy"));
+                : gameForeground
+                    ? L($"Game macro completed - {completedRuns} run(s)", $"Đã hoàn tất macro game - {completedRuns} lần chạy")
+                    : L($"Workflow completed in background - {completedRuns} run(s)", $"Đã hoàn tất quy trình trong nền - {completedRuns} lần chạy"));
         }
         catch (OperationCanceledException) { StatusChanged?.Invoke(this, "Workflow stopped"); }
         finally
         {
-            foregroundGuardCts.Cancel();
-            try { await foregroundGuardTask; } catch (OperationCanceledException) { }
+            foregroundGuardCts?.Cancel();
+            if (foregroundGuardTask is not null) try { await foregroundGuardTask; } catch (OperationCanceledException) { }
             CurrentActionChanged?.Invoke(this, null);
             IsRunning = false;
+            _autoFocusPaused = false;
             _pauseGate.Set();
             _runCts?.Dispose();
             _runCts = null;
@@ -121,6 +156,28 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     private static bool IsTargetWindow(IntPtr target, IntPtr candidate) =>
         candidate != IntPtr.Zero &&
         (candidate == target || NativeMethods.GetAncestor(candidate, NativeMethods.GaRoot) == target);
+
+    private async Task WaitForGameForegroundAsync(IntPtr target, CancellationToken token)
+    {
+        await WaitWhilePausedAsync(token);
+        while (!IsTargetWindow(target, NativeMethods.GetForegroundWindow()))
+        {
+            if (!_autoFocusPaused)
+            {
+                _autoFocusPaused = true;
+                StatusChanged?.Invoke(this, L(
+                    "Game macro auto-paused - return to the target to continue; focus will not be forced",
+                    "Macro game tự tạm dừng - quay lại cửa sổ đích để tiếp tục; app sẽ không cưỡng ép focus"));
+            }
+            await Task.Delay(40, token);
+            await WaitWhilePausedAsync(token);
+        }
+        if (_autoFocusPaused)
+        {
+            _autoFocusPaused = false;
+            StatusChanged?.Invoke(this, L("Target active again - game macro resumed", "Cửa sổ đích đã hoạt động lại - macro game tiếp tục"));
+        }
+    }
 
     private void DispatchClick(IntPtr root, PointerAction action, bool twice, string playbackMode)
     {
@@ -250,6 +307,82 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         return false;
     }
 
+    private async Task DispatchTargetedGameActionAsync(IntPtr root, AutomationAction action, Func<CancellationToken, Task> waitUntilReady, CancellationToken token)
+    {
+        switch (action)
+        {
+            case ClickAction click: PostClick(root, click, false, false); break;
+            case RightClickAction click: PostClick(root, click, true, false); break;
+            case DoubleClickAction click: PostClick(root, click, false, true); break;
+            case TypeTextAction text: PostText(root, text.Text); break;
+            case KeyPressAction key: PostKey(root, key.KeyName); break;
+            case KeyHoldAction hold: await PostKeyHoldAsync(root, hold, waitUntilReady, token); break;
+            case DragAction drag: await PostDragAsync(root, drag, waitUntilReady, token); break;
+        }
+        StatusChanged?.Invoke(this, L(
+            "Experimental targeted game input sent without activation - acceptance cannot be detected",
+            "Đã gửi input game nhắm đích thử nghiệm mà không kích hoạt - không thể tự phát hiện game có nhận hay không"));
+    }
+
+    private async Task PostKeyHoldAsync(IntPtr root, KeyHoldAction action, Func<CancellationToken, Task> waitUntilReady, CancellationToken token)
+    {
+        var recipient = GetKeyboardRecipient(root);
+        var keys = action.KeyName.ToUpperInvariant().Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(ToVirtualKey).ToArray();
+        var remaining = Math.Max(1, action.Milliseconds);
+        var held = false;
+        try
+        {
+            while (remaining > 0)
+            {
+                if (!_pauseGate.IsSet)
+                {
+                    if (held) { foreach (var key in keys.Reverse()) PostKeyMessage(recipient, key, true); held = false; }
+                    await waitUntilReady(token);
+                }
+                if (!held) { foreach (var key in keys) PostKeyMessage(recipient, key, false); held = true; }
+                var slice = Math.Min(remaining, 25);
+                await Task.Delay(slice, token);
+                remaining -= slice;
+            }
+        }
+        finally
+        {
+            if (held) foreach (var key in keys.Reverse()) PostKeyMessage(recipient, key, true);
+        }
+    }
+
+    private async Task PostDragAsync(IntPtr root, DragAction action, Func<CancellationToken, Task> waitUntilReady, CancellationToken token)
+    {
+        var duration = Math.Max(1, action.Milliseconds);
+        var steps = Math.Clamp(duration / 16, 2, 240);
+        var held = false;
+        var current = PackPoint(action.StartX, action.StartY);
+        try
+        {
+            Post(root, NativeMethods.WmLButtonDown, new IntPtr(NativeMethods.MkLButton), current);
+            held = true;
+            for (var step = 1; step <= steps; step++)
+            {
+                if (!_pauseGate.IsSet)
+                {
+                    if (held) { Post(root, NativeMethods.WmLButtonUp, IntPtr.Zero, current); held = false; }
+                    await waitUntilReady(token);
+                }
+                var progress = step / (double)steps;
+                var x = (int)Math.Round(action.StartX + (action.EndX - action.StartX) * progress);
+                var y = (int)Math.Round(action.StartY + (action.EndY - action.StartY) * progress);
+                current = PackPoint(x, y);
+                if (!held) { Post(root, NativeMethods.WmLButtonDown, new IntPtr(NativeMethods.MkLButton), current); held = true; }
+                Post(root, NativeMethods.WmMouseMove, new IntPtr(NativeMethods.MkLButton), current);
+                await Task.Delay(Math.Max(1, duration / steps), token);
+            }
+        }
+        finally
+        {
+            if (held) Post(root, NativeMethods.WmLButtonUp, IntPtr.Zero, current);
+        }
+    }
+
     public void Pause() { if (IsRunning) { _pauseGate.Reset(); StatusChanged?.Invoke(this, "Paused"); } }
     public void Resume() { if (IsRunning) { _pauseGate.Set(); StatusChanged?.Invoke(this, "Resuming..."); } }
     public void Stop() { _runCts?.Cancel(); _pauseGate.Set(); }
@@ -259,12 +392,12 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         while (!_pauseGate.IsSet) await Task.Delay(40, token);
     }
 
-    private async Task DelayWithPauseAsync(int milliseconds, CancellationToken token)
+    private static async Task DelayWithPauseAsync(int milliseconds, Func<CancellationToken, Task> waitUntilReady, CancellationToken token)
     {
         var remaining = milliseconds;
         while (remaining > 0)
         {
-            await WaitWhilePausedAsync(token);
+            await waitUntilReady(token);
             var slice = Math.Min(remaining, 40);
             await Task.Delay(slice, token);
             remaining -= slice;
@@ -310,7 +443,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     {
         var threadId = NativeMethods.GetWindowThreadProcessId(root, out _);
         var info = new GUITHREADINFO { Size = (uint)Marshal.SizeOf<GUITHREADINFO>() };
-        if (NativeMethods.GetGUIThreadInfo(threadId, ref info) && info.Focus != IntPtr.Zero) return info.Focus;
+        if (NativeMethods.GetGUIThreadInfo(threadId, ref info) && info.Focus != IntPtr.Zero && NativeMethods.GetAncestor(info.Focus, NativeMethods.GaRoot) == root) return info.Focus;
         var coreWindow = FindCoreWindow(root);
         return coreWindow != IntPtr.Zero ? coreWindow : root;
     }

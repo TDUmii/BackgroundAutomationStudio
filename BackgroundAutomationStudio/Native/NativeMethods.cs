@@ -17,6 +17,7 @@ public static class NativeMethods
     public const int WmLButtonDblClk = 0x0203;
     public const int WmRButtonDown = 0x0204;
     public const int WmRButtonUp = 0x0205;
+    public const int WmMouseMove = 0x0200;
     public const uint MkLButton = 0x0001;
     public const uint MkRButton = 0x0002;
     public const uint GaRoot = 2;
@@ -33,6 +34,23 @@ public static class NativeMethods
     public const long WsExNoActivate = 0x08000000L;
     public const int SmCxDoubleclk = 36;
     public const int SmCyDoubleclk = 37;
+    public const int SmCxDrag = 68;
+    public const int SmCyDrag = 69;
+    public const int SmXVirtualScreen = 76;
+    public const int SmYVirtualScreen = 77;
+    public const int SmCxVirtualScreen = 78;
+    public const int SmCyVirtualScreen = 79;
+    public const uint InputMouse = 0;
+    public const uint InputKeyboard = 1;
+    public const uint MouseeventfMove = 0x0001;
+    public const uint MouseeventfLeftdown = 0x0002;
+    public const uint MouseeventfLeftup = 0x0004;
+    public const uint MouseeventfRightdown = 0x0008;
+    public const uint MouseeventfRightup = 0x0010;
+    public const uint MouseeventfAbsolute = 0x8000;
+    public const uint MouseeventfVirtualdesk = 0x4000;
+    public const uint KeyeventfKeyup = 0x0002;
+    public const uint KeyeventfUnicode = 0x0004;
 
     public delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
     public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
@@ -111,4 +129,6 @@ public static class NativeMethods
     public static extern int ToUnicodeEx(uint virtualKey, uint scanCode, byte[] keyState, StringBuilder buffer, int bufferSize, uint flags, IntPtr keyboardLayout);
     [DllImport("user32.dll")]
     public static extern short GetAsyncKeyState(int virtualKey);
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern uint SendInput(uint count, INPUT[] inputs, int size);
 }

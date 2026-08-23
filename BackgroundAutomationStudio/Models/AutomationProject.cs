@@ -37,7 +37,7 @@ public sealed record PlaybackRunOptions(
     DateTimeOffset? StopAt)
 {
     public static PlaybackRunOptions Count(int repeatCount) =>
-        new(RepeatModes.Count, Math.Clamp(repeatCount, 1, 999), TimeSpan.Zero, null);
+        new(RepeatModes.Count, Math.Clamp(repeatCount, 1, 1_000_000), TimeSpan.Zero, null);
 
     public static DateTimeOffset GetNextStopAt(TimeSpan clockTime, DateTimeOffset now)
     {

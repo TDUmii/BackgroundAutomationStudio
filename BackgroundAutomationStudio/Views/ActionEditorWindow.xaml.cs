@@ -25,25 +25,30 @@ public partial class ActionEditorWindow : Window
         if (invalidField is not null)
         {
             invalidField.Focus(); invalidField.SelectAll();
-            MessageBox.Show($"{AutomationProperties.GetName(invalidField)} must be a whole number greater than or equal to zero. Enter a valid value, then save again.", "Check numeric value", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var fieldName = AutomationProperties.GetName(invalidField);
+            if (string.IsNullOrWhiteSpace(fieldName)) fieldName = "Numeric field";
+            var positive = Equals(invalidField.Tag, "PositiveInteger");
+            var requirement = positive ? "a whole number greater than zero" : "a whole number greater than or equal to zero";
+            MessageBox.Show($"{fieldName} must be {requirement}. Enter a valid value, then save again.", "Check numeric value", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
         foreach (var combo in FindVisualChildren<ComboBox>(this)) combo.GetBindingExpression(ComboBox.TextProperty)?.UpdateSource();
-        if (Action is KeyPressAction key && !KeyNames.IsSupported(key.KeyName)) { MessageBox.Show($"Unsupported key \"{key.KeyName}\". Use a listed key or a shortcut such as CTRL+C.", "Invalid key", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+        var keyName = Action switch { KeyPressAction key => key.KeyName, KeyHoldAction hold => hold.KeyName, _ => null };
+        if (keyName is not null && !KeyNames.IsSupported(keyName)) { MessageBox.Show($"Unsupported key \"{keyName}\". Use a listed key or a shortcut such as CTRL+C.", "Invalid key", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
         DialogResult = true;
     }
 
     private TextBox? ValidateNumericFields()
     {
         TextBox? firstInvalid = null;
-        foreach (var field in FindVisualChildren<TextBox>(this).Where(box => Equals(box.Tag, "NonNegativeInteger")))
+        foreach (var field in FindVisualChildren<TextBox>(this).Where(box => Equals(box.Tag, "NonNegativeInteger") || Equals(box.Tag, "PositiveInteger")))
         {
-            var valid = int.TryParse(field.Text, out var value) && value >= 0;
+            var valid = int.TryParse(field.Text, out var value) && (Equals(field.Tag, "PositiveInteger") ? value > 0 : value >= 0);
             field.ClearValue(Control.BorderBrushProperty); field.ClearValue(FrameworkElement.ToolTipProperty);
             if (!valid)
             {
                 field.BorderBrush = (Brush)FindResource("DangerBrush");
-                field.ToolTip = "Enter a whole number greater than or equal to zero.";
+                field.ToolTip = Equals(field.Tag, "PositiveInteger") ? "Enter a whole number greater than zero." : "Enter a whole number greater than or equal to zero.";
                 firstInvalid ??= field;
             }
             else field.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();

@@ -80,7 +80,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AutomationAction? SelectedAction { get => _selectedAction; set { if (SetProperty(ref _selectedAction, value)) RaiseCommandStates(); } }
     public string ProjectTitle => Project.Name + (IsModified ? " *" : string.Empty);
     public string TargetSummary => Project.Target is null ? LocalizationService.Get("NoTarget") : $"{Project.Target.ProcessName} - {Project.Target.WindowTitle}";
-    public int RepeatCount { get => Project.RepeatCount; set { var safe = Math.Clamp(value, 1, 999); if (Project.RepeatCount == safe) return; Project.RepeatCount = safe; OnPropertyChanged(); MarkModified(); } }
+    public int RepeatCount { get => Project.RepeatCount; set { var safe = Math.Clamp(value, 1, 1_000_000); if (Project.RepeatCount == safe) return; Project.RepeatCount = safe; OnPropertyChanged(); MarkModified(); } }
     public string RepeatMode { get => RepeatModes.Normalize(Project.RepeatMode); set { var safe = RepeatModes.Normalize(value); if (Project.RepeatMode == safe) return; Project.RepeatMode = safe; OnPropertyChanged(); MarkModified(); } }
     public int RepeatDurationMinutes { get => Project.RepeatDurationMinutes; set { var safe = Math.Clamp(value, 1, 10080); if (Project.RepeatDurationMinutes == safe) return; Project.RepeatDurationMinutes = safe; OnPropertyChanged(); MarkModified(); } }
     public string StopAtTime { get => Project.StopAtTime; set { var safe = value?.Trim() ?? string.Empty; if (Project.StopAtTime == safe) return; Project.StopAtTime = safe; OnPropertyChanged(); MarkModified(); } }
@@ -130,6 +130,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (IsRunning) { _runner.Stop(); return; }
         if (RunCommand.CanExecute(null)) RunCommand.Execute(null);
         else StatusText = LocalizationService.Language == "vi" ? "Không thể chạy - hãy chọn cửa sổ đích và thêm ít nhất một thao tác" : "Cannot run - select a target window and add at least one action";
+    }
+
+    public void TogglePauseFromHotkey()
+    {
+        if (IsRunning) { TogglePause(); return; }
+        StatusText = LocalizationService.Language == "vi" ? "Không có quy trình đang chạy để tạm dừng" : "No running workflow to pause";
     }
 
     public void RefreshLanguage()
@@ -266,11 +272,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             throw new InvalidOperationException(LocalizationService.Language == "vi" ? "Giờ dừng không hợp lệ. Hãy nhập theo dạng HH:mm, ví dụ 23:30." : "Invalid stop time. Use HH:mm, for example 23:30.");
         return new(mode, RepeatCount, TimeSpan.Zero, PlaybackRunOptions.GetNextStopAt(clock, DateTimeOffset.Now));
     }
-    private void TogglePause() { if (_runner.IsPaused) { _runner.Resume(); IsPaused = false; } else { _runner.Pause(); IsPaused = true; } }
+    private void TogglePause() { if (IsPaused) { _runner.Resume(); IsPaused = false; } else { _runner.Pause(); IsPaused = true; } }
 
     private void AddAction(string type, bool? above)
     {
-        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), _ => new WaitAction() };
+        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "Drag" => new BackgroundAutomationStudio.Models.DragAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), "KeyHold" => new KeyHoldAction(), _ => new WaitAction() };
         var edited = _dialogs.EditAction(action, Project.Target, true); if (edited is null) return;
         var index = above is null || SelectedAction is null ? Actions.Count : Actions.IndexOf(SelectedAction) + (above.Value ? 0 : 1); Actions.Insert(index, edited); SelectedAction = edited;
     }

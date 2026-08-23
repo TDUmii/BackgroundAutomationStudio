@@ -16,11 +16,14 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         _original = settings;
         HotkeyBox.Text = settings.RunHotkey;
+        PauseHotkeyBox.Text = settings.PauseHotkey;
         if (settings.Language == "vi") VietnameseRadio.IsChecked = true; else EnglishRadio.IsChecked = true;
         switch (PlaybackModes.Normalize(settings.PlaybackMode))
         {
             case PlaybackModes.UiAutomation: UiAutomationRadio.IsChecked = true; break;
             case PlaybackModes.Win32Messages: Win32Radio.IsChecked = true; break;
+            case PlaybackModes.GameForeground: GameForegroundRadio.IsChecked = true; break;
+            case PlaybackModes.GameBackground: GameBackgroundRadio.IsChecked = true; break;
             default: AutomaticRadio.IsChecked = true; break;
         }
         UpdateLanguageHelp();
@@ -40,7 +43,11 @@ public partial class SettingsWindow : Window
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin) return;
         var text = HotkeyParser.FromKeyEvent(key, Keyboard.Modifiers);
-        if (!string.IsNullOrEmpty(text)) { HotkeyBox.Text = text; HotkeyError.Visibility = Visibility.Collapsed; }
+        if (!string.IsNullOrEmpty(text) && sender is TextBox box)
+        {
+            box.Text = text;
+            if (box == PauseHotkeyBox) PauseHotkeyError.Visibility = Visibility.Collapsed; else HotkeyError.Visibility = Visibility.Collapsed;
+        }
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -51,11 +58,28 @@ public partial class SettingsWindow : Window
             HotkeyError.Visibility = Visibility.Visible;
             return;
         }
+        if (!HotkeyParser.TryParse(PauseHotkeyBox.Text, out _, out _))
+        {
+            PauseHotkeyError.Text = VietnameseRadio.IsChecked == true ? "Hãy chọn một tổ hợp phím tạm dừng hợp lệ." : "Choose a valid pause shortcut.";
+            PauseHotkeyError.Visibility = Visibility.Visible;
+            return;
+        }
+        if (string.Equals(HotkeyBox.Text, PauseHotkeyBox.Text, StringComparison.OrdinalIgnoreCase))
+        {
+            PauseHotkeyError.Text = VietnameseRadio.IsChecked == true ? "Hai chức năng cần hai phím tắt khác nhau." : "Run/Stop and Pause/Resume need different shortcuts.";
+            PauseHotkeyError.Visibility = Visibility.Visible;
+            return;
+        }
         Result = new AppSettings
         {
             Language = VietnameseRadio.IsChecked == true ? "vi" : "en",
             RunHotkey = HotkeyBox.Text,
-            PlaybackMode = UiAutomationRadio.IsChecked == true ? PlaybackModes.UiAutomation : Win32Radio.IsChecked == true ? PlaybackModes.Win32Messages : PlaybackModes.Automatic
+            PauseHotkey = PauseHotkeyBox.Text,
+            PlaybackMode = UiAutomationRadio.IsChecked == true ? PlaybackModes.UiAutomation
+                : Win32Radio.IsChecked == true ? PlaybackModes.Win32Messages
+                : GameForegroundRadio.IsChecked == true ? PlaybackModes.GameForeground
+                : GameBackgroundRadio.IsChecked == true ? PlaybackModes.GameBackground
+                : PlaybackModes.Automatic
         };
         DialogResult = true;
     }

@@ -26,15 +26,15 @@ The workflow remains inspectable, reversible, and editable in both a direct-mani
 
 ## Operating Context
 
-The app runs visibly on Windows 10/11. Recording is always user initiated and observes real input in the selected target. Version 1.4 defaults to strict semantic and Win32 background playback, reserving potentially focus-taking UI Automation invocation for an explicitly selected compatibility mode. Projects are local JSON files.
+The app runs visibly on Windows 10/11. Recording is always user initiated and observes real input in the selected target. Version 1.5 defaults to strict semantic and Win32 background playback for desktop targets, reserving potentially focus-taking UI Automation invocation for an explicitly selected compatibility mode. It adds explicit foreground and experimental background game engines without changing the desktop default. Projects are local JSON files.
 
 ## Capabilities and Constraints
 
-Version 1.4 includes window selection and resolution, explicit recording, click and keyboard capture without mouse movement, workflow editing, shared visual/DSL undo and redo history, client-relative playback after moving the target, strict semantic Windows Calculator playback, activation-shielded Win32 fallback, an opt-in focus-unsafe UI Automation compatibility mode, count/infinite/duration/clock-time schedules, Clear all, English/Vietnamese UI, a configurable global Run/Stop hotkey, diagnostic playback status, and project save/load. It intentionally excludes fully hidden-window automation, multiple concurrent tasks, calendar recurrence, image/OCR/pixel logic, complex conditions, cloud, accounts, databases, plugins, process injection, drivers, and anti-cheat bypass.
+Version 1.5 includes window selection and resolution, explicit recording, click/keyboard/held-key/drag capture, workflow editing, shared visual/DSL undo and redo history, client-relative playback after moving the target, strict semantic Windows Calculator playback, activation-shielded Win32 fallback, an opt-in focus-unsafe UI Automation compatibility mode, foreground Game Macro input with focus-loss auto-pause and held-input release, experimental targeted game messages, count/infinite/duration/clock-time schedules, repeat counts up to 1,000,000, Clear all, English/Vietnamese UI, separate global Run/Emergency Stop and Pause/Resume hotkeys, diagnostic playback status, and project save/load. It intentionally excludes guaranteed raw-input background control, a second hardware cursor, fully hidden-window automation, multiple concurrent tasks, calendar recurrence, image/OCR/pixel logic, complex conditions, cloud, accounts, databases, plugins, process injection, drivers, packet manipulation, memory modification, and anti-cheat bypass.
 
 ## Brand Commitments
 
-The product name is Background Automation Studio. The version label is “Version 1.4 - Strict Focus & Semantic Playback”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
+The product name is Background Automation Studio. The version label is “Version 1.5 - Game Macro & Focus Guard”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
 
 ## Evidence on Hand
 
@@ -47,6 +47,8 @@ The supplied product brief contains the complete V1 workflow, architecture, DSL,
 - Make every workflow step inspectable and reversible before playback.
 - Resolve client coordinates against the target's current location for every replayed action.
 - Keep editor models independent from the current background-message runner so later engines can be added.
+- Game foreground automation must never raise or reactivate the selected game. Losing focus releases held synthetic input and pauses at the nearest safe boundary.
+- Experimental game-background delivery must never claim success merely because Windows accepted a message; target acceptance is unknowable from outside the game.
 
 ## Accessibility & Inclusion
 

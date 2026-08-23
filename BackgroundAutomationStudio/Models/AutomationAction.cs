@@ -9,6 +9,8 @@ namespace BackgroundAutomationStudio.Models;
 [JsonDerivedType(typeof(DoubleClickAction), "doubleClick")]
 [JsonDerivedType(typeof(TypeTextAction), "typeText")]
 [JsonDerivedType(typeof(KeyPressAction), "keyPress")]
+[JsonDerivedType(typeof(KeyHoldAction), "keyHold")]
+[JsonDerivedType(typeof(DragAction), "drag")]
 [JsonDerivedType(typeof(WaitAction), "wait")]
 public abstract class AutomationAction : ObservableObject
 {
@@ -73,6 +75,34 @@ public sealed class KeyPressAction : AutomationAction
     public override string ActionType => "Key Press";
     public override string Summary => KeyName;
     public override AutomationAction Clone() { var a = new KeyPressAction { KeyName = KeyName }; CopyCommonTo(a); return a; }
+}
+
+public sealed class KeyHoldAction : AutomationAction
+{
+    private string _keyName = "E";
+    private int _milliseconds = 1000;
+    public string KeyName { get => _keyName; set { if (SetProperty(ref _keyName, value?.ToUpperInvariant() ?? "E")) OnPropertyChanged(nameof(Summary)); } }
+    public int Milliseconds { get => _milliseconds; set { if (SetProperty(ref _milliseconds, Math.Max(1, value))) OnPropertyChanged(nameof(Summary)); } }
+    public override string ActionType => "Hold Key";
+    public override string Summary => $"{KeyName}  {Milliseconds:N0} ms";
+    public override AutomationAction Clone() { var a = new KeyHoldAction { KeyName = KeyName, Milliseconds = Milliseconds }; CopyCommonTo(a); return a; }
+}
+
+public sealed class DragAction : AutomationAction
+{
+    private int _startX;
+    private int _startY;
+    private int _endX = 100;
+    private int _endY = 100;
+    private int _milliseconds = 500;
+    public int StartX { get => _startX; set { if (SetProperty(ref _startX, value)) OnPropertyChanged(nameof(Summary)); } }
+    public int StartY { get => _startY; set { if (SetProperty(ref _startY, value)) OnPropertyChanged(nameof(Summary)); } }
+    public int EndX { get => _endX; set { if (SetProperty(ref _endX, value)) OnPropertyChanged(nameof(Summary)); } }
+    public int EndY { get => _endY; set { if (SetProperty(ref _endY, value)) OnPropertyChanged(nameof(Summary)); } }
+    public int Milliseconds { get => _milliseconds; set { if (SetProperty(ref _milliseconds, Math.Max(1, value))) OnPropertyChanged(nameof(Summary)); } }
+    public override string ActionType => "Drag";
+    public override string Summary => $"{StartX},{StartY} → {EndX},{EndY}  {Milliseconds:N0} ms";
+    public override AutomationAction Clone() { var a = new DragAction { StartX = StartX, StartY = StartY, EndX = EndX, EndY = EndY, Milliseconds = Milliseconds }; CopyCommonTo(a); return a; }
 }
 
 public sealed class WaitAction : AutomationAction

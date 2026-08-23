@@ -78,7 +78,7 @@ components:
 
 **Creative North Star: "The Graphite Control Desk"**
 
-Background Automation Studio is a dense but calm Windows operator workspace. Graphite surfaces keep target context, transport controls, project state, and the workflow editor visible together; darker accessible blue is reserved for primary action, keyboard focus, and live execution; red is reserved for recording, stop-record emphasis, and errors.
+Background Automation Studio is a dense but calm Windows operator workspace. Graphite surfaces keep target context, transport controls, project state, and the workflow editor visible together; darker accessible blue is reserved for primary action, keyboard focus, and live execution; red is reserved for recording, stop-record emphasis, and errors. Version 1.5 extends the same operator language to game compatibility without adopting gaming neon, decorative HUD chrome, or false claims of undetectable background input.
 
 The hierarchy follows the work rather than decoration. Selection and current execution are visibly different states, important fields have visible names, and the empty editor provides authored next-step guidance instead of a blank canvas.
 
@@ -141,7 +141,7 @@ The palette is a cool graphite neutral system with one operational blue accent a
 
 The main window opens at 1280×820 with a 1024×680 minimum. A 42px menu/product bar and 34px status bar frame the work area. Inside an 18px margin, a fixed 350px context-and-transport column sits 18px from the flexible workflow editor. The left column scrolls vertically when required; additional width belongs to the editor.
 
-Major panels use 18px internal padding. Spacing follows a 4/8/12/16/24/32 family, with 14px and 18px used where the dense desktop grid needs intermediate separation. The action editor is a focused 470px owner-centered dialog, sized to content and capped at 720px high.
+Major panels use 18px internal padding. Spacing follows a 4/8/12/16/24/32 family, with 14px and 18px used where the dense desktop grid needs intermediate separation. The action editor is a focused 470px owner-centered dialog, sized to content and capped at 720px high. Settings opens as a resizable 620×820 owner-centered window with a 560×680 minimum; its 24px outer margin, fixed header and footer, and single scrolling content panel keep Save settings continuously available.
 
 Workflow rows scan left-to-right as play marker, number, enabled checkbox, action type, summary, and current-state text. The empty list centers an authored title and specific guidance for recording or adding an action manually.
 
@@ -179,11 +179,22 @@ Controls and nested information wells use 8px corners, workflow rows use 10px, a
 - **Style:** Dark field surface, near-white text, one-pixel boundary, blue caret, and 10px by 8px padding.
 - **Focus:** Fields shift to an Operator Blue border; buttons and rows use a brighter two-pixel focus border.
 - **Names:** Visible labels name X, Y, text, shortcut, wait duration, and delay. Automation names add units and target-client context.
+- **Numeric Recovery:** Every constrained numeric field has an explicit accessible name that describes the value, units, and relevant target context. On save, invalid fields receive a red border and requirement tooltip; the first invalid field is focused and fully selected, and the warning repeats that field's accessible name plus the exact whole-number requirement so correction is immediate rather than a generic failure.
 - **Validation:** Script errors appear below the editor in a bordered dark-red surface with light rose Consolas text.
 
 ### Navigation
 
 The native menu bar exposes File and Edit commands and visible New/Open/Save gestures. Text tabs use muted inactive labels, graphite hover, and a selected raised surface with near-white text and a blue underline. The bottom status bar stays quiet and persistent.
+
+### Game Engine Settings
+
+Settings keeps one continuous playback-engine list. Strict background remains first and selected by default. The two game choices follow immediately: **Game macro - foreground** names the reliable game path and explains physical-pointer use plus focus-loss auto-pause; **Game background - experimental** names its uncertainty directly and calls out Project Zomboid/raw-input rejection. This ordering and the window's initial scroll position deliberately keep the experimental choice visible in the first Settings viewport rather than hiding it below a fold. Modern UI Automation and Classic Win32 remain available below. Selected modes use the existing Execution Blue surface and border; warnings remain text-led rather than introducing a new alert color.
+
+Run/Emergency Stop and Pause/Resume form one compact two-column group with a 12px gutter. The equal-width, separately named fields use 15px Consolas, a 42px minimum height, and inline per-field error text. Their labels describe behavior rather than implementation, and the settings copy states that emergency stop releases held synthetic input.
+
+### Scrollbars
+
+Main and Settings share one application-level **SlimScrollBar** treatment: an 8px transparent track with a muted graphite thumb, 4px corner radius, and 1px inset. Reuse this shared resource for dense vertical content instead of creating window-specific scrollbar variants.
 
 ### Workflow Rows
 
@@ -195,7 +206,7 @@ The recording banner uses a dark red surface and muted red border. An eight-pixe
 
 ### Playback Compatibility
 
-Settings presents three full-width, text-led choices: Strict background, Modern controls that may take focus, and Classic Win32 messages. Each choice includes its operational consequence, uses the established graphite selection treatment, and remains keyboard focusable. Strict background is the default and never calls focus-taking UI Automation patterns. The Modern option is explicitly labeled as potentially interrupting typing and IME composition. Compatibility copy distinguishes a covered window from minimized and fully hidden states so the interface does not promise universal hidden-window automation.
+Settings presents five full-width, text-led choices in one continuous list: Strict background, Game macro - foreground, Game background - experimental, Modern controls that may take focus, and Classic Win32 messages. Each choice includes its operational consequence, uses the established graphite/Execution Blue selection treatment, and remains keyboard focusable. Strict background is the default and never calls focus-taking UI Automation patterns. The Modern option is explicitly labeled as potentially interrupting typing and IME composition. Compatibility copy distinguishes a covered window from minimized and fully hidden states so the interface does not promise universal hidden-window automation.
 
 During a run, the activation shield prevents ordinary target activation and the status bar distinguishes focus-safe semantic commands, Win32 fallback, and explicitly requested focus-unsafe UI Automation. Playback never restores the target's recorded desktop position. A visible target can be dragged while running because every action resolves its client-relative coordinate against the current window position.
 
@@ -220,6 +231,9 @@ The empty editor centers “No actions yet” with guidance to select a target, 
 - **Do** distinguish selection, keyboard focus, execution, disabled state, and recording with markers, text, borders, or opacity in addition to color.
 - **Do** keep primary actions dark blue and reserve red for recording, stop-record, and errors.
 - **Do** preserve visible field labels and descriptive automation names, including units and target-client context.
+- **Do** place paired global hotkeys in the compact two-column group and keep the experimental game mode discoverable in the first Settings viewport.
+- **Do** reuse the shared slim scrollbar in Main and Settings scrolling regions.
+- **Do** make numeric recovery field-specific: name the field, state its valid range, focus it, and select its contents.
 - **Do** keep the workflow editor dominant while target and transport context remain available.
 - **Do** use concise empty-state and helper copy that tells the operator what to do next.
 
@@ -230,3 +244,5 @@ The empty editor centers “No actions yet” with guidance to select a target, 
 - **Don't** add amber, neon color, gradients, distracting animation, or gaming-style effects.
 - **Don't** use Consolas for general UI or headings.
 - **Don't** introduce drop shadows or extra card layers where tonal contrast and borders suffice.
+- **Don't** replace the shared scrollbar with competing per-window treatments or hide experimental status below the initial Settings fold.
+- **Don't** show a generic numeric-error message that leaves the operator to locate the invalid field manually.

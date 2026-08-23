@@ -20,7 +20,7 @@ public sealed class ProjectServiceTests
                 RepeatDurationMinutes = 45,
                 StopAtTime = "21:30",
                 Target = new WindowTarget { ProcessName = "notepad.exe", ProcessId = 42, WindowTitle = "Test.txt - Notepad", WindowTitleContains = "Notepad", WindowClassName = "Notepad", RecordedX = 200, RecordedY = 100, RecordedWidth = 1200, RecordedHeight = 700, LastKnownHwnd = 12345 },
-                Actions = [new ClickAction { ClientX = 400, ClientY = 250 }, new TypeTextAction { Text = "Hello Umi" }, new KeyPressAction { KeyName = "ENTER", Enabled = false }]
+                Actions = [new ClickAction { ClientX = 400, ClientY = 250 }, new TypeTextAction { Text = "Hello Umi" }, new KeyPressAction { KeyName = "ENTER", Enabled = false }, new KeyHoldAction { KeyName = "E", Milliseconds = 2200 }, new DragAction { StartX = 1, StartY = 2, EndX = 3, EndY = 4, Milliseconds = 500 }]
             };
             var service = new ProjectService();
             await service.SaveAsync(project, path);
@@ -34,6 +34,8 @@ public sealed class ProjectServiceTests
             Assert.IsType<ClickAction>(loaded.Actions[0]);
             Assert.Equal("Hello Umi", Assert.IsType<TypeTextAction>(loaded.Actions[1]).Text);
             Assert.False(loaded.Actions[2].Enabled);
+            Assert.Equal(2200, Assert.IsType<KeyHoldAction>(loaded.Actions[3]).Milliseconds);
+            Assert.Equal(4, Assert.IsType<DragAction>(loaded.Actions[4]).EndY);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
@@ -62,6 +64,19 @@ public sealed class ProjectServiceTests
             await File.WriteAllTextAsync(path, "{\"version\":1,\"name\":\"Repeat\",\"repeatCount\":0,\"actions\":[]}");
             var loaded = await new ProjectService().LoadAsync(path);
             Assert.Equal(1, loaded.RepeatCount);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task Load_AllowsLongGameMacroRepeatCount()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"bas-{Guid.NewGuid():N}.json");
+        try
+        {
+            await File.WriteAllTextAsync(path, "{\"version\":1,\"name\":\"Long macro\",\"repeatCount\":250000,\"actions\":[]}");
+            var loaded = await new ProjectService().LoadAsync(path);
+            Assert.Equal(250000, loaded.RepeatCount);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }

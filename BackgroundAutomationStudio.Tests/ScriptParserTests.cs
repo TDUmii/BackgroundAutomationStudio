@@ -57,4 +57,27 @@ public sealed class ScriptParserTests
         Assert.True(result.IsValid);
         Assert.Equal(2, result.Actions.Count);
     }
+
+    [Fact]
+    public void Parse_GameMacroActions_PreservesHoldAndDrag()
+    {
+        var result = _parser.Parse("HOLD SHIFT+E 1250\nDRAG 10 20 300 400 900");
+        Assert.True(result.IsValid);
+        var hold = Assert.IsType<KeyHoldAction>(result.Actions[0]);
+        Assert.Equal(("SHIFT+E", 1250), (hold.KeyName, hold.Milliseconds));
+        var drag = Assert.IsType<DragAction>(result.Actions[1]);
+        Assert.Equal((10, 20, 300, 400, 900), (drag.StartX, drag.StartY, drag.EndX, drag.EndY, drag.Milliseconds));
+        Assert.Equal("HOLD SHIFT+E 1250\r\nDRAG 10 20 300 400 900", _parser.Serialize(result.Actions));
+    }
+
+    [Theory]
+    [InlineData("HOLD E 0", "Line 1: Hold duration must be a positive number")]
+    [InlineData("DRAG 0 0 10 10 0", "Line 1: Drag duration must be positive")]
+    [InlineData("DRAG -1 0 10 10 100", "Line 1: Drag coordinates cannot be negative")]
+    public void Parse_InvalidGameMacroAction_ReturnsSpecificError(string script, string expected)
+    {
+        var result = _parser.Parse(script);
+        Assert.False(result.IsValid);
+        Assert.Equal(expected, result.Errors.Single().ToString());
+    }
 }

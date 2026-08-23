@@ -35,6 +35,8 @@ public sealed partial class ScriptParser
                 "DOUBLE_CLICK" => ParsePoint<DoubleClickAction>(args, i + 1, result),
                 "WAIT" => ParseWait(args, i + 1, result),
                 "KEY" => ParseKey(args, i + 1, result),
+                "HOLD" => ParseHold(args, i + 1, result),
+                "DRAG" => ParseDrag(args, i + 1, result),
                 "TYPE" => ParseType(raw, i + 1, result),
                 _ => AddUnknown(command, i + 1, result)
             };
@@ -56,6 +58,8 @@ public sealed partial class ScriptParser
                 DoubleClickAction a => $"DOUBLE_CLICK {a.ClientX} {a.ClientY}",
                 TypeTextAction a => $"TYPE \"{Escape(a.Text)}\"",
                 KeyPressAction a => $"KEY {a.KeyName.ToUpperInvariant()}",
+                KeyHoldAction a => $"HOLD {a.KeyName.ToUpperInvariant()} {a.Milliseconds}",
+                DragAction a => $"DRAG {a.StartX} {a.StartY} {a.EndX} {a.EndY} {a.Milliseconds}",
                 WaitAction a => $"WAIT {a.Milliseconds}",
                 _ => throw new InvalidOperationException($"Unsupported action {action.GetType().Name}.")
             };
@@ -86,6 +90,28 @@ public sealed partial class ScriptParser
         if (string.IsNullOrWhiteSpace(key)) { result.Errors.Add(new(line, "Key name is required")); return null; }
         if (!KeyNames.IsSupported(key)) { result.Errors.Add(new(line, $"Unsupported key \"{key}\"")); return null; }
         return new KeyPressAction { KeyName = key };
+    }
+
+    private static AutomationAction? ParseHold(string args, int line, ScriptParseResult result)
+    {
+        var parts = args.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2) { result.Errors.Add(new(line, "Expected a key name and hold duration in milliseconds")); return null; }
+        var key = parts[0].ToUpperInvariant();
+        if (!KeyNames.IsSupported(key)) { result.Errors.Add(new(line, $"Unsupported key \"{key}\"")); return null; }
+        if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var milliseconds) || milliseconds <= 0) { result.Errors.Add(new(line, "Hold duration must be a positive number")); return null; }
+        return new KeyHoldAction { KeyName = key, Milliseconds = milliseconds };
+    }
+
+    private static AutomationAction? ParseDrag(string args, int line, ScriptParseResult result)
+    {
+        var parts = args.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 5) { result.Errors.Add(new(line, "Expected start X/Y, end X/Y, and duration")); return null; }
+        var values = new int[5];
+        for (var index = 0; index < values.Length; index++)
+            if (!int.TryParse(parts[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out values[index])) { result.Errors.Add(new(line, "Drag values must be numbers")); return null; }
+        if (values.Take(4).Any(value => value < 0)) { result.Errors.Add(new(line, "Drag coordinates cannot be negative")); return null; }
+        if (values[4] <= 0) { result.Errors.Add(new(line, "Drag duration must be positive")); return null; }
+        return new DragAction { StartX = values[0], StartY = values[1], EndX = values[2], EndY = values[3], Milliseconds = values[4] };
     }
 
     private static AutomationAction? ParseType(string raw, int line, ScriptParseResult result)
@@ -123,7 +149,7 @@ public static class KeyNames
         "ENTER", "TAB", "ESCAPE", "BACKSPACE", "DELETE", "UP", "DOWN", "LEFT", "RIGHT", "CTRL", "SHIFT", "ALT",
         "HOME", "END", "PAGEUP", "PAGEDOWN", "SPACE"
     };
-    public static bool IsSupported(string key) => Supported.Contains(key) || (key.Length is 2 or 3 && key[0] == 'F' && int.TryParse(key[1..], out var f) && f is >= 1 and <= 12) || IsCombination(key);
+    public static bool IsSupported(string key) => Supported.Contains(key) || (key.Length == 1 && char.IsLetterOrDigit(key[0])) || (key.Length is 2 or 3 && key[0] == 'F' && int.TryParse(key[1..], out var f) && f is >= 1 and <= 12) || IsCombination(key);
     private static bool IsCombination(string key)
     {
         var parts = key.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
