@@ -2,6 +2,14 @@
 
 Background Automation Studio is a Windows 10/11 desktop application for recording, inspecting, editing, saving, and replaying small automation workflows against one selected application window. Playback runs in the background without moving the physical pointer or sending global input.
 
+## Download for Windows
+
+Download the ready-to-run, self-contained Windows x64 application:
+
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v1.1.0/BackgroundAutomationStudio.exe)**
+
+No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v1.1.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v1.1.0).
+
 ## Features
 
 - Select and re-resolve one visible target window, then capture and restore its client layout.
