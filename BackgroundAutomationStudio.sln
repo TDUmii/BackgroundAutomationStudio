@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundAutomationStudio", "BackgroundAutomationStudio\BackgroundAutomationStudio.csproj", "{D0BBD641-7E56-462C-9B43-CC7F76AB5DDD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundAutomationStudio.Tests", "BackgroundAutomationStudio.Tests\BackgroundAutomationStudio.Tests.csproj", "{F5B7EAA2-A7B5-4342-AFE3-AE0366AC2FED}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D0BBD641-7E56-462C-9B43-CC7F76AB5DDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0BBD641-7E56-462C-9B43-CC7F76AB5DDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0BBD641-7E56-462C-9B43-CC7F76AB5DDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0BBD641-7E56-462C-9B43-CC7F76AB5DDD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F5B7EAA2-A7B5-4342-AFE3-AE0366AC2FED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F5B7EAA2-A7B5-4342-AFE3-AE0366AC2FED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F5B7EAA2-A7B5-4342-AFE3-AE0366AC2FED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F5B7EAA2-A7B5-4342-AFE3-AE0366AC2FED}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

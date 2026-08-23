@@ -1,0 +1,34 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+artifacts/
+TestResults/
+
+# Local SDK and bootstrap files
+.dotnet/
+dotnet-install.ps1
+
+# IDE and user state
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local application data and automation projects
+settings.json
+Projects/
+*.bas-project.json
+
+# Logs, diagnostics, and packages
+*.log
+*.dmp
+*.zip
+*.nupkg
+
+# OS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store

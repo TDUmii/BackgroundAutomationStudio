@@ -1,0 +1,41 @@
+<Window x:Class="BackgroundAutomationStudio.Views.SettingsWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="{DynamicResource SettingsTitle}" Icon="/BackgroundAutomationStudio;component/Assets/app-icon.ico" Width="600" Height="720" MinWidth="560" MinHeight="620" ResizeMode="CanResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Window.Resources>
+        <Style x:Key="LanguageChoice" TargetType="RadioButton"><Setter Property="Foreground" Value="{StaticResource TextPrimary}"/><Setter Property="Background" Value="{StaticResource PanelRaised}"/><Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="14,10"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton"><Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="Chrome" Property="Background" Value="#1D355D"/><Setter TargetName="Chrome" Property="BorderBrush" Value="#5A8FE4"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="#9EC0FF"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+        <Style x:Key="PlaybackChoice" TargetType="RadioButton"><Setter Property="Foreground" Value="{StaticResource TextPrimary}"/><Setter Property="Background" Value="{StaticResource PanelRaised}"/><Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="14,10"/><Setter Property="Margin" Value="0,8,0,0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton"><Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{StaticResource SelectedSurface}"/></Trigger><Trigger Property="IsChecked" Value="True"><Setter TargetName="Chrome" Property="Background" Value="#1D355D"/><Setter TargetName="Chrome" Property="BorderBrush" Value="#5A8FE4"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="#9EC0FF"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+    </Window.Resources>
+    <Grid Margin="0" Background="{StaticResource AppBackground}"><Grid Margin="24">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="{DynamicResource SettingsTitle}" FontSize="24" FontWeight="SemiBold"/>
+            <TextBlock Text="Background Automation Studio" Foreground="{StaticResource TextSecondary}" Margin="0,5,0,0"/>
+        </StackPanel>
+        <Border Grid.Row="1" Background="{StaticResource PanelBackground}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,20,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+            <StackPanel>
+                <TextBlock Text="{DynamicResource Language}" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="English is used by default. Changes apply immediately after saving." Foreground="{StaticResource TextSecondary}" Margin="0,5,0,10" x:Name="LanguageHelp"/>
+                <UniformGrid Columns="2"><RadioButton x:Name="EnglishRadio" Content="English" GroupName="Language" Style="{StaticResource LanguageChoice}" Margin="0,0,5,0" Checked="LanguageChoice_Checked"/><RadioButton x:Name="VietnameseRadio" Content="Tiếng Việt" GroupName="Language" Style="{StaticResource LanguageChoice}" Margin="5,0,0,0" Checked="LanguageChoice_Checked"/></UniformGrid>
+                <Separator Margin="0,18"/>
+                <TextBlock Text="{DynamicResource RunHotkey}" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="{DynamicResource PressShortcut}" Foreground="{StaticResource TextSecondary}" Margin="0,5,0,10"/>
+                <TextBox x:Name="HotkeyBox" IsReadOnly="True" FontFamily="Consolas" FontSize="15" MinHeight="42" PreviewKeyDown="HotkeyBox_PreviewKeyDown" AutomationProperties.Name="Run or stop global hotkey"/>
+                <TextBlock x:Name="HotkeyError" Foreground="#FFB8BE" Margin="0,7,0,0" Visibility="Collapsed"/>
+                <Separator Margin="0,18"/>
+                <TextBlock Text="{DynamicResource InputMode}" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="{DynamicResource PlaybackModeHelp}" Foreground="{StaticResource TextSecondary}" Margin="0,5,0,2" TextWrapping="Wrap"/>
+                <RadioButton x:Name="AutomaticRadio" GroupName="PlaybackMode" Style="{StaticResource PlaybackChoice}" AutomationProperties.Name="Automatic playback compatibility">
+                    <StackPanel><TextBlock Text="{DynamicResource AutomaticMode}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource AutomaticModeHelp}" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
+                </RadioButton>
+                <RadioButton x:Name="UiAutomationRadio" GroupName="PlaybackMode" Style="{StaticResource PlaybackChoice}" AutomationProperties.Name="Modern controls UI Automation mode">
+                    <StackPanel><TextBlock Text="{DynamicResource UiAutomationMode}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource UiAutomationModeHelp}" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
+                </RadioButton>
+                <RadioButton x:Name="Win32Radio" GroupName="PlaybackMode" Style="{StaticResource PlaybackChoice}" AutomationProperties.Name="Classic Win32 messages mode">
+                    <StackPanel><TextBlock Text="{DynamicResource Win32Mode}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource Win32ModeHelp}" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
+                </RadioButton>
+                <TextBlock Text="{DynamicResource Compatibility}" Foreground="{StaticResource TextSecondary}" Margin="0,10,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+            </ScrollViewer>
+        </Border>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0"><Button Content="{DynamicResource Cancel}" IsCancel="True" Margin="0,0,8,0"/><Button Content="{DynamicResource SaveSettings}" Style="{StaticResource PrimaryButton}" Click="Save_Click"/></StackPanel>
+    </Grid></Grid>
+</Window>
