@@ -64,13 +64,13 @@ public sealed class ScreenCoordinateOverlayControl : FrameworkElement
     {
         var minor = new Pen(new SolidColorBrush(Color.FromArgb(55, 158, 192, 255)), 1);
         var major = new Pen(new SolidColorBrush(Color.FromArgb(120, 158, 192, 255)), 1);
-        for (var x = 0; x <= ClientWidth; x += 50)
+        for (var x = 0; x <= ClientWidth; x += 25)
         {
             var screenX = x / (double)Math.Max(1, ClientWidth) * bounds.Width;
             drawing.DrawLine(x % 100 == 0 ? major : minor, new Point(screenX, 0), new Point(screenX, bounds.Height));
             if (x % 100 == 0) DrawCoordinateLabel(drawing, x.ToString(CultureInfo.InvariantCulture), new Point(screenX + 3, 3), bounds);
         }
-        for (var y = 0; y <= ClientHeight; y += 50)
+        for (var y = 0; y <= ClientHeight; y += 25)
         {
             var screenY = y / (double)Math.Max(1, ClientHeight) * bounds.Height;
             drawing.DrawLine(y % 100 == 0 ? major : minor, new Point(0, screenY), new Point(bounds.Width, screenY));
@@ -115,20 +115,24 @@ public sealed class ScreenCoordinateOverlayControl : FrameworkElement
     {
         var point = Map(bounds, CursorClientX, CursorClientY);
         var text = MakeText($"{CursorClientX} | {CursorClientY}", Brushes.White, 11);
-        const double gap = 14;
+        const double gap = 18;
         const double paddingX = 7;
         const double paddingY = 4;
         var width = text.Width + paddingX * 2;
         var height = text.Height + paddingY * 2;
-        var left = point.X + gap;
-        var top = point.Y + gap;
-        if (left + width > bounds.Right - 4) left = point.X - gap - width;
-        if (top + height > bounds.Bottom - 4) top = point.Y - gap - height;
+        var backplate = CalculateCursorLabelBounds(bounds, point, width, height, gap);
+        drawing.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(232, 12, 14, 17)), new Pen(new SolidColorBrush(Color.FromArgb(220, 116, 167, 255)), 1), backplate, 5, 5);
+        drawing.DrawText(text, new Point(backplate.Left + paddingX, backplate.Top + paddingY));
+    }
+
+    internal static Rect CalculateCursorLabelBounds(Rect bounds, Point point, double width, double height, double gap = 18)
+    {
+        var left = point.X - width / 2;
+        var top = point.Y - gap - height;
+        if (top < bounds.Top + 4) top = point.Y + gap;
         left = Math.Clamp(left, bounds.Left + 4, Math.Max(bounds.Left + 4, bounds.Right - width - 4));
         top = Math.Clamp(top, bounds.Top + 4, Math.Max(bounds.Top + 4, bounds.Bottom - height - 4));
-        var backplate = new Rect(left, top, width, height);
-        drawing.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(232, 12, 14, 17)), new Pen(new SolidColorBrush(Color.FromArgb(220, 116, 167, 255)), 1), backplate, 5, 5);
-        drawing.DrawText(text, new Point(left + paddingX, top + paddingY));
+        return new Rect(left, top, width, height);
     }
 
     private void DrawMarker(DrawingContext drawing, Point point, int index, Brush fill, Pen outline)

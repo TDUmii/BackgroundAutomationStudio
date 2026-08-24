@@ -83,6 +83,19 @@ public sealed class ScriptParserTests
         Assert.Equal((600, 980), (last.ClientX, last.ClientY));
     }
 
+    [Fact]
+    public void Parse_RepeatedClickDstWorkflow_PreservesEveryStep()
+    {
+        const string script = "CLICK 245 720\nWAIT 937\nCLICK 263 526\nWAIT 398\nCLICK 242 584\nWAIT 331\nCLICK 228 633\nWAIT 602\nCLICK 226 673\nWAIT 1023\nCLICK 212 923";
+        var result = _parser.Parse(script);
+        Assert.True(result.IsValid);
+        Assert.Equal(11, result.Actions.Count);
+        Assert.Equal(6, result.Actions.OfType<ClickAction>().Count());
+        Assert.Equal(5, result.Actions.OfType<WaitAction>().Count());
+        var last = Assert.IsType<ClickAction>(result.Actions[^1]);
+        Assert.Equal((212, 923), (last.ClientX, last.ClientY));
+    }
+
     [Theory]
     [InlineData("HOLD E 0", "Line 1: Hold duration must be a positive number")]
     [InlineData("DRAG 0 0 10 10 0", "Line 1: Drag duration must be positive")]

@@ -62,6 +62,14 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             : () => _pauseGate.IsSet;
         try
         {
+            if (gameForeground && !IsTargetWindow(hwnd, NativeMethods.GetForegroundWindow()))
+            {
+                StatusChanged?.Invoke(this, L("Activating the target for foreground game input...", "Đang đưa cửa sổ đích lên trước để gửi input game..."));
+                _windowManager.Activate(hwnd);
+                await Task.Delay(180, token);
+                if (!IsTargetWindow(hwnd, NativeMethods.GetForegroundWindow()))
+                    throw new InvalidOperationException(L("Windows did not allow the target to become active. Activate it once, then start with the global hotkey.", "Windows không cho phép kích hoạt cửa sổ đích. Hãy kích hoạt cửa sổ đó một lần rồi bắt đầu bằng phím tắt toàn cục."));
+            }
             var wasMinimized = NativeMethods.IsIconic(hwnd);
             if (wasMinimized)
             {
@@ -103,7 +111,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                     else if (gameForeground)
                     {
                         await GameInputDispatcher.DispatchAsync(hwnd, action, isReady, waitUntilReady, token);
-                        StatusChanged?.Invoke(this, L("Foreground game input sent - focus was not forced", "Đã gửi input game phía trước - không cưỡng ép focus"));
+                        StatusChanged?.Invoke(this, L("Foreground game input sent while the target is active", "Đã gửi input game khi cửa sổ đích đang hoạt động"));
                     }
                     else if (gameBackground)
                     {
@@ -134,7 +142,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                 ? L($"Schedule reached - stopped after {completedRuns} complete run(s)", $"Đã đến lịch dừng - kết thúc sau {completedRuns} lần chạy hoàn chỉnh")
                 : gameForeground
                     ? L($"Game macro completed - {completedRuns} run(s)", $"Đã hoàn tất macro game - {completedRuns} lần chạy")
-                    : L($"Workflow completed in background - {completedRuns} run(s)", $"Đã hoàn tất quy trình trong nền - {completedRuns} lần chạy"));
+                    : L($"Delivery finished - {completedRuns} run(s); target processing was not verified", $"Đã gửi xong - {completedRuns} lần chạy; không thể xác minh cửa sổ đích đã xử lý"));
         }
         catch (OperationCanceledException) { StatusChanged?.Invoke(this, "Workflow stopped"); }
         finally
