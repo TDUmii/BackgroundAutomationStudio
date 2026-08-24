@@ -293,7 +293,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void AddAction(string type, bool? above)
     {
-        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "Drag" => new BackgroundAutomationStudio.Models.DragAction(), "Scroll" => new ScrollAction(), "MovePointer" => new MovePointerAction(), "CallFunction" => new CallFunctionAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), "KeyHold" => new KeyHoldAction(), _ => new WaitAction() };
+        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "Drag" => new BackgroundAutomationStudio.Models.DragAction(), "Scroll" => new ScrollAction(), "MovePointer" => new MovePointerAction(), "WaitForImage" => new WaitForImageAction(), "ClickImage" => new ClickImageAction(), "CallFunction" => new CallFunctionAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), "KeyHold" => new KeyHoldAction(), _ => new WaitAction() };
         if (action is CallFunctionAction && Functions.Count == 0)
         {
             StatusText = LocalizationService.Language == "vi" ? "Hãy tạo ít nhất một hàm dùng lại trước khi thêm bước CALL" : "Create at least one reusable function before adding a CALL step";

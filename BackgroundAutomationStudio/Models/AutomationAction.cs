@@ -15,6 +15,8 @@ namespace BackgroundAutomationStudio.Models;
 [JsonDerivedType(typeof(MovePointerAction), "movePointer")]
 [JsonDerivedType(typeof(CallFunctionAction), "callFunction")]
 [JsonDerivedType(typeof(WaitAction), "wait")]
+[JsonDerivedType(typeof(WaitForImageAction), "waitForImage")]
+[JsonDerivedType(typeof(ClickImageAction), "clickImage")]
 public abstract class AutomationAction : ObservableObject
 {
     private bool _enabled = true;
@@ -145,4 +147,67 @@ public sealed class WaitAction : AutomationAction
     public override string ActionType => "Wait";
     public override string Summary => $"{Milliseconds:N0} ms";
     public override AutomationAction Clone() { var a = new WaitAction { Milliseconds = Milliseconds }; CopyCommonTo(a); return a; }
+}
+
+public abstract class ImageScanAction : AutomationAction
+{
+    private string _templateName = string.Empty;
+    private byte[] _templatePng = [];
+    private int _similarityPercent = 88;
+    private int _timeoutMilliseconds = 10000;
+    private int _pollIntervalMilliseconds = 150;
+    private int _regionX;
+    private int _regionY;
+    private int _regionWidth;
+    private int _regionHeight;
+
+    public string TemplateName { get => _templateName; set { if (SetProperty(ref _templateName, value?.Trim() ?? string.Empty)) OnPropertyChanged(nameof(Summary)); } }
+    public byte[] TemplatePng { get => _templatePng; set { if (SetProperty(ref _templatePng, value ?? [])) { OnPropertyChanged(nameof(Summary)); OnPropertyChanged(nameof(HasTemplate)); } } }
+    public int SimilarityPercent { get => _similarityPercent; set { if (SetProperty(ref _similarityPercent, Math.Clamp(value, 1, 100))) OnPropertyChanged(nameof(Summary)); } }
+    public int TimeoutMilliseconds { get => _timeoutMilliseconds; set { if (SetProperty(ref _timeoutMilliseconds, Math.Clamp(value, 0, 3_600_000))) OnPropertyChanged(nameof(Summary)); } }
+    public int PollIntervalMilliseconds { get => _pollIntervalMilliseconds; set { if (SetProperty(ref _pollIntervalMilliseconds, Math.Clamp(value, 50, 10_000))) OnPropertyChanged(nameof(Summary)); } }
+    public int RegionX { get => _regionX; set => SetProperty(ref _regionX, Math.Max(0, value)); }
+    public int RegionY { get => _regionY; set => SetProperty(ref _regionY, Math.Max(0, value)); }
+    public int RegionWidth { get => _regionWidth; set { if (SetProperty(ref _regionWidth, Math.Max(0, value))) OnPropertyChanged(nameof(Summary)); } }
+    public int RegionHeight { get => _regionHeight; set { if (SetProperty(ref _regionHeight, Math.Max(0, value))) OnPropertyChanged(nameof(Summary)); } }
+    [JsonIgnore] public bool HasTemplate => TemplatePng.Length > 0;
+    [JsonIgnore] public bool UsesFullClient => RegionWidth == 0 || RegionHeight == 0;
+
+    protected void CopyImageScanTo(ImageScanAction target)
+    {
+        target.TemplateName = TemplateName;
+        target.TemplatePng = TemplatePng.ToArray();
+        target.SimilarityPercent = SimilarityPercent;
+        target.TimeoutMilliseconds = TimeoutMilliseconds;
+        target.PollIntervalMilliseconds = PollIntervalMilliseconds;
+        target.RegionX = RegionX;
+        target.RegionY = RegionY;
+        target.RegionWidth = RegionWidth;
+        target.RegionHeight = RegionHeight;
+        CopyCommonTo(target);
+    }
+
+    protected string ImageSummary(string behavior) => $"{behavior}  {SimilarityPercent}%  {(UsesFullClient ? "Full client" : $"{RegionWidth} x {RegionHeight} at {RegionX},{RegionY}")}";
+}
+
+public sealed class WaitForImageAction : ImageScanAction
+{
+    private bool _waitForDisappear;
+    public bool WaitForDisappear { get => _waitForDisappear; set { if (SetProperty(ref _waitForDisappear, value)) OnPropertyChanged(nameof(Summary)); } }
+    public override string ActionType => "Wait for Image";
+    public override string Summary => ImageSummary(WaitForDisappear ? "Disappear" : "Appear");
+    public override AutomationAction Clone() { var action = new WaitForImageAction { WaitForDisappear = WaitForDisappear }; CopyImageScanTo(action); return action; }
+}
+
+public sealed class ClickImageAction : ImageScanAction
+{
+    private int _offsetX;
+    private int _offsetY;
+    private bool _rightClick;
+    public int OffsetX { get => _offsetX; set { if (SetProperty(ref _offsetX, Math.Clamp(value, -10000, 10000))) OnPropertyChanged(nameof(Summary)); } }
+    public int OffsetY { get => _offsetY; set { if (SetProperty(ref _offsetY, Math.Clamp(value, -10000, 10000))) OnPropertyChanged(nameof(Summary)); } }
+    public bool RightClick { get => _rightClick; set { if (SetProperty(ref _rightClick, value)) OnPropertyChanged(nameof(Summary)); } }
+    public override string ActionType => "Click Image";
+    public override string Summary => ImageSummary(RightClick ? "Right click" : "Left click");
+    public override AutomationAction Clone() { var action = new ClickImageAction { OffsetX = OffsetX, OffsetY = OffsetY, RightClick = RightClick }; CopyImageScanTo(action); return action; }
 }

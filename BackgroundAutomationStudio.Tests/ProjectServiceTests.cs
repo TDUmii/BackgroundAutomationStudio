@@ -24,7 +24,7 @@ public sealed class ProjectServiceTests
                 RepeatDurationMinutes = 45,
                 StopAtTime = "21:30",
                 Target = new WindowTarget { ProcessName = "notepad.exe", ProcessId = 42, WindowTitle = "Test.txt - Notepad", WindowTitleContains = "Notepad", WindowClassName = "Notepad", RecordedX = 200, RecordedY = 100, RecordedWidth = 1200, RecordedHeight = 700, LastKnownHwnd = 12345 },
-                Actions = [new ClickAction { ClientX = 400, ClientY = 250 }, new TypeTextAction { Text = "Hello Umi" }, new KeyPressAction { KeyName = "ENTER", Enabled = false }, new KeyHoldAction { KeyName = "E", Milliseconds = 2200 }, new DragAction { StartX = 1, StartY = 2, EndX = 3, EndY = 4, Milliseconds = 500 }],
+                Actions = [new ClickAction { ClientX = 400, ClientY = 250 }, new TypeTextAction { Text = "Hello Umi" }, new KeyPressAction { KeyName = "ENTER", Enabled = false }, new KeyHoldAction { KeyName = "E", Milliseconds = 2200 }, new DragAction { StartX = 1, StartY = 2, EndX = 3, EndY = 4, Milliseconds = 500 }, new WaitForImageAction { TemplateName = "ready.png", TemplatePng = [1, 2, 3], SimilarityPercent = 90 }],
                 Functions = [new AutomationFunction { Name = "Confirm", Actions = [new MovePointerAction { ClientX = 40, ClientY = 50 }, new ClickAction { ClientX = 40, ClientY = 50 }] }]
             };
             var service = new ProjectService();
@@ -41,6 +41,9 @@ public sealed class ProjectServiceTests
             Assert.False(loaded.Actions[2].Enabled);
             Assert.Equal(2200, Assert.IsType<KeyHoldAction>(loaded.Actions[3]).Milliseconds);
             Assert.Equal(4, Assert.IsType<DragAction>(loaded.Actions[4]).EndY);
+            var image = Assert.IsType<WaitForImageAction>(loaded.Actions[5]);
+            Assert.Equal("ready.png", image.TemplateName);
+            Assert.Equal(new byte[] { 1, 2, 3 }, image.TemplatePng);
             Assert.True(loaded.ShowCoordinateMap);
             Assert.False(loaded.ShowCoordinateGrid);
             Assert.Equal("#55D6A0", loaded.MarkerColor);

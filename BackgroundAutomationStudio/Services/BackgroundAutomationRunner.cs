@@ -10,15 +10,17 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     private readonly IWindowManager _windowManager;
     private readonly Func<string> _playbackModeProvider;
     private readonly Func<int> _gamePressDurationProvider;
+    private readonly IVisualMatchingService _visualMatching;
     private readonly ManualResetEventSlim _pauseGate = new(true);
     private CancellationTokenSource? _runCts;
     private volatile bool _autoFocusPaused;
 
-    public BackgroundAutomationRunner(IWindowManager windowManager, Func<string>? playbackModeProvider = null, Func<int>? gamePressDurationProvider = null)
+    public BackgroundAutomationRunner(IWindowManager windowManager, Func<string>? playbackModeProvider = null, Func<int>? gamePressDurationProvider = null, IVisualMatchingService? visualMatching = null)
     {
         _windowManager = windowManager;
         _playbackModeProvider = playbackModeProvider ?? (() => PlaybackModes.Automatic);
         _gamePressDurationProvider = gamePressDurationProvider ?? (() => AppSettings.DefaultGamePressDurationMilliseconds);
+        _visualMatching = visualMatching ?? new VisualMatchingService();
     }
 
     public bool IsRunning { get; private set; }
@@ -104,12 +106,33 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                     if (deadline is { } beforeAction && DateTimeOffset.Now >= beforeAction) { stoppedBySchedule = true; break; }
                     CurrentActionChanged?.Invoke(this, action);
                     var iterationLabel = repeatMode == RepeatModes.Count ? $"{iteration}/{repeatCount}" : $"{iteration}/∞";
-                    StatusChanged?.Invoke(this, L($"{engineLabel} — Run {iterationLabel} - {action.ActionType}", $"{engineLabel} — Lần chạy {iterationLabel} - {action.ActionType}"));
+                    StatusChanged?.Invoke(this, L($"{engineLabel} - Run {iterationLabel} - {action.ActionType}", $"{engineLabel} - Lần chạy {iterationLabel} - {action.ActionType}"));
                     if (action.DelayBefore > 0) await DelayWithPauseAsync(action.DelayBefore, waitUntilReady, token);
                     syntheticFocus?.Refresh();
                     if (action is WaitAction wait)
                     {
                         await DelayWithPauseAsync(wait.Milliseconds, waitUntilReady, token);
+                    }
+                    else if (action is WaitForImageAction waitImage)
+                    {
+                        await WaitForVisualConditionAsync(hwnd, waitImage, waitUntilReady, token);
+                    }
+                    else if (action is ClickImageAction clickImage)
+                    {
+                        var match = await WaitForImageMatchAsync(hwnd, clickImage, waitUntilReady, token);
+                        var x = Math.Max(0, match.CenterX + clickImage.OffsetX);
+                        var y = Math.Max(0, match.CenterY + clickImage.OffsetY);
+                        AutomationAction click = clickImage.RightClick
+                            ? new RightClickAction { ClientX = x, ClientY = y }
+                            : new ClickAction { ClientX = x, ClientY = y };
+                        if (gameForeground)
+                            await GameInputDispatcher.DispatchAsync(hwnd, click, gamePressDuration, isReady, waitUntilReady, token);
+                        else if (gameBackground)
+                            await DispatchTargetedGameActionAsync(hwnd, click, waitUntilReady, token);
+                        else if (click is RightClickAction rightClick)
+                            DispatchRightClick(hwnd, rightClick);
+                        else
+                            DispatchClick(hwnd, (ClickAction)click, false, playbackMode);
                     }
                     else if (gameForeground)
                     {
@@ -159,6 +182,47 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             _runCts?.Dispose();
             _runCts = null;
         }
+    }
+
+    private async Task WaitForVisualConditionAsync(IntPtr hwnd, WaitForImageAction action, Func<CancellationToken, Task> waitUntilReady, CancellationToken token)
+    {
+        ValidateImageAction(action);
+        var started = DateTimeOffset.UtcNow;
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            await waitUntilReady(token);
+            var match = await Task.Run(() => _visualMatching.Find(hwnd, action.TemplatePng, action.RegionX, action.RegionY, action.RegionWidth, action.RegionHeight, action.SimilarityPercent / 100d), token);
+            var satisfied = action.WaitForDisappear ? !match.Found : match.Found;
+            if (satisfied) return;
+            if ((DateTimeOffset.UtcNow - started).TotalMilliseconds >= action.TimeoutMilliseconds)
+                throw new TimeoutException(L(
+                    action.WaitForDisappear ? $"Image did not disappear within {action.TimeoutMilliseconds:N0} ms." : $"Image was not found within {action.TimeoutMilliseconds:N0} ms.",
+                    action.WaitForDisappear ? $"Ảnh không biến mất trong {action.TimeoutMilliseconds:N0} mili giây." : $"Không tìm thấy ảnh trong {action.TimeoutMilliseconds:N0} mili giây."));
+            await DelayWithPauseAsync(action.PollIntervalMilliseconds, waitUntilReady, token);
+        }
+    }
+
+    private async Task<VisualMatchResult> WaitForImageMatchAsync(IntPtr hwnd, ClickImageAction action, Func<CancellationToken, Task> waitUntilReady, CancellationToken token)
+    {
+        ValidateImageAction(action);
+        var started = DateTimeOffset.UtcNow;
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            await waitUntilReady(token);
+            var match = await Task.Run(() => _visualMatching.Find(hwnd, action.TemplatePng, action.RegionX, action.RegionY, action.RegionWidth, action.RegionHeight, action.SimilarityPercent / 100d), token);
+            if (match.Found) return match;
+            if ((DateTimeOffset.UtcNow - started).TotalMilliseconds >= action.TimeoutMilliseconds)
+                throw new TimeoutException(L($"Image was not found within {action.TimeoutMilliseconds:N0} ms.", $"Không tìm thấy ảnh trong {action.TimeoutMilliseconds:N0} mili giây."));
+            await DelayWithPauseAsync(action.PollIntervalMilliseconds, waitUntilReady, token);
+        }
+    }
+
+    private static void ValidateImageAction(ImageScanAction action)
+    {
+        if (action.TemplatePng.Length == 0) throw new InvalidOperationException(L("Choose a PNG template before running image scan.", "Hãy chọn ảnh mẫu PNG trước khi chạy quét ảnh."));
+        if (action.RegionWidth == 0 ^ action.RegionHeight == 0) throw new InvalidOperationException(L("Set both search region width and height, or leave both at zero for the full client area.", "Hãy đặt cả chiều rộng và chiều cao vùng quét, hoặc để cả hai bằng 0 để quét toàn vùng khách."));
     }
 
     private void RestoreUserForegroundIfStolen(IntPtr target, IntPtr previousForeground)

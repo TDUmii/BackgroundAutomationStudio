@@ -11,6 +11,10 @@ public sealed partial class ScriptParser
     private static partial Regex TypeRegex();
     [GeneratedRegex("^CALL\\s+\"((?:\\\\.|[^\"\\\\])*)\"$", RegexOptions.IgnoreCase)]
     private static partial Regex CallRegex();
+    [GeneratedRegex("^WAIT_IMAGE\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(APPEAR|DISAPPEAR)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+\"((?:\\\\.|[^\"\\\\])*)\"\\s+([A-Za-z0-9+/=]+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex WaitImageRegex();
+    [GeneratedRegex("^CLICK_IMAGE\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(LEFT|RIGHT)\\s+(-?\\d+)\\s+(-?\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+\"((?:\\\\.|[^\"\\\\])*)\"\\s+([A-Za-z0-9+/=]+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex ClickImageRegex();
 
     public ScriptParseResult Parse(string? script)
     {
@@ -38,6 +42,8 @@ public sealed partial class ScriptParser
                 "RIGHT_CLICK" => ParsePoint<RightClickAction>(args, i + 1, result),
                 "DOUBLE_CLICK" => ParsePoint<DoubleClickAction>(args, i + 1, result),
                 "WAIT" => ParseWait(args, i + 1, result),
+                "WAIT_IMAGE" => ParseWaitImage(raw, i + 1, result),
+                "CLICK_IMAGE" => ParseClickImage(raw, i + 1, result),
                 "KEY" => ParseKey(args, i + 1, result),
                 "HOLD" => ParseHold(args, i + 1, result),
                 "DRAG" => ParseDrag(args, i + 1, result),
@@ -72,6 +78,8 @@ public sealed partial class ScriptParser
                 MovePointerAction a => $"MOVE {a.ClientX} {a.ClientY}",
                 CallFunctionAction a => $"CALL \"{Escape(a.FunctionName)}\"",
                 WaitAction a => $"WAIT {a.Milliseconds}",
+                WaitForImageAction a => $"WAIT_IMAGE {a.SimilarityPercent} {a.TimeoutMilliseconds} {a.PollIntervalMilliseconds} {(a.WaitForDisappear ? "DISAPPEAR" : "APPEAR")} {a.RegionX} {a.RegionY} {a.RegionWidth} {a.RegionHeight} \"{Escape(a.TemplateName)}\" {Convert.ToBase64String(a.TemplatePng)}",
+                ClickImageAction a => $"CLICK_IMAGE {a.SimilarityPercent} {a.TimeoutMilliseconds} {a.PollIntervalMilliseconds} {(a.RightClick ? "RIGHT" : "LEFT")} {a.OffsetX} {a.OffsetY} {a.RegionX} {a.RegionY} {a.RegionWidth} {a.RegionHeight} \"{Escape(a.TemplateName)}\" {Convert.ToBase64String(a.TemplatePng)}",
                 _ => throw new InvalidOperationException($"Unsupported action {action.GetType().Name}.")
             };
             lines.Add(action.Enabled ? line : $"# DISABLED {line}");
@@ -99,6 +107,57 @@ public sealed partial class ScriptParser
         if (!int.TryParse(args, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)) { result.Errors.Add(new(line, "Milliseconds must be a number")); return null; }
         if (value < 0) { result.Errors.Add(new(line, "Milliseconds cannot be negative")); return null; }
         return new WaitAction { Milliseconds = value };
+    }
+
+    private static AutomationAction? ParseWaitImage(string raw, int line, ScriptParseResult result)
+    {
+        var match = WaitImageRegex().Match(raw);
+        if (!match.Success) { result.Errors.Add(new(line, "Expected similarity, timeout, poll interval, APPEAR or DISAPPEAR, region X/Y/width/height, template name, and PNG data")); return null; }
+        if (!TryParseImageCommon(match, 1, line, result, out var values, out var name, out var png)) return null;
+        return new WaitForImageAction
+        {
+            SimilarityPercent = values[0], TimeoutMilliseconds = values[1], PollIntervalMilliseconds = values[2],
+            WaitForDisappear = match.Groups[4].Value.Equals("DISAPPEAR", StringComparison.OrdinalIgnoreCase),
+            RegionX = values[3], RegionY = values[4], RegionWidth = values[5], RegionHeight = values[6], TemplateName = name, TemplatePng = png
+        };
+    }
+
+    private static AutomationAction? ParseClickImage(string raw, int line, ScriptParseResult result)
+    {
+        var match = ClickImageRegex().Match(raw);
+        if (!match.Success) { result.Errors.Add(new(line, "Expected similarity, timeout, poll interval, LEFT or RIGHT, offsets, region X/Y/width/height, template name, and PNG data")); return null; }
+        var indexes = new[] { 1, 2, 3, 7, 8, 9, 10 };
+        var values = new int[7];
+        for (var index = 0; index < indexes.Length; index++)
+            if (!int.TryParse(match.Groups[indexes[index]].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out values[index])) { result.Errors.Add(new(line, "Image scan values must be whole numbers")); return null; }
+        if (!ValidateImageValues(values, line, result)) return null;
+        if (!int.TryParse(match.Groups[5].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var offsetX) || !int.TryParse(match.Groups[6].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var offsetY)) { result.Errors.Add(new(line, "Image click offsets must be whole numbers")); return null; }
+        try
+        {
+            var png = Convert.FromBase64String(match.Groups[12].Value);
+            if (png.Length == 0) throw new FormatException();
+            return new ClickImageAction { SimilarityPercent = values[0], TimeoutMilliseconds = values[1], PollIntervalMilliseconds = values[2], RightClick = match.Groups[4].Value.Equals("RIGHT", StringComparison.OrdinalIgnoreCase), OffsetX = offsetX, OffsetY = offsetY, RegionX = values[3], RegionY = values[4], RegionWidth = values[5], RegionHeight = values[6], TemplateName = Unescape(match.Groups[11].Value), TemplatePng = png };
+        }
+        catch (FormatException) { result.Errors.Add(new(line, "Image template data must be valid Base64")); return null; }
+    }
+
+    private static bool TryParseImageCommon(Match match, int startGroup, int line, ScriptParseResult result, out int[] values, out string name, out byte[] png)
+    {
+        var indexes = new[] { startGroup, startGroup + 1, startGroup + 2, startGroup + 4, startGroup + 5, startGroup + 6, startGroup + 7 };
+        values = new int[7]; name = string.Empty; png = [];
+        for (var index = 0; index < indexes.Length; index++)
+            if (!int.TryParse(match.Groups[indexes[index]].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out values[index])) { result.Errors.Add(new(line, "Image scan values must be whole numbers")); return false; }
+        if (!ValidateImageValues(values, line, result)) return false;
+        try { name = Unescape(match.Groups[startGroup + 8].Value); png = Convert.FromBase64String(match.Groups[startGroup + 9].Value); if (png.Length == 0) throw new FormatException(); return true; }
+        catch (FormatException) { result.Errors.Add(new(line, "Image template data must be valid Base64")); return false; }
+    }
+
+    private static bool ValidateImageValues(int[] values, int line, ScriptParseResult result)
+    {
+        if (values[0] is < 1 or > 100) { result.Errors.Add(new(line, "Similarity must be from 1 to 100")); return false; }
+        if (values[1] < 0 || values[2] is < 50 or > 10000 || values.Skip(3).Any(value => value < 0)) { result.Errors.Add(new(line, "Image scan timeout and region values are invalid")); return false; }
+        if (values[5] == 0 ^ values[6] == 0) { result.Errors.Add(new(line, "Image scan region width and height must both be zero or both be positive")); return false; }
+        return true;
     }
 
     private static AutomationAction? ParseKey(string args, int line, ScriptParseResult result)

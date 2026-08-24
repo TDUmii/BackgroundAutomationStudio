@@ -156,4 +156,25 @@ public sealed class ScriptParserTests
         Assert.False(result.IsValid);
         Assert.Equal(expected, result.Errors.Single().ToString());
     }
+
+    [Fact]
+    public void ImageActions_RoundTripEmbeddedTemplateAndSettingsThroughDsl()
+    {
+        var template = new byte[] { 137, 80, 78, 71, 1, 2, 3, 4 };
+        AutomationAction[] actions =
+        [
+            new WaitForImageAction { TemplateName = "Play button.png", TemplatePng = template, SimilarityPercent = 91, TimeoutMilliseconds = 7000, PollIntervalMilliseconds = 125, RegionX = 10, RegionY = 20, RegionWidth = 300, RegionHeight = 200, WaitForDisappear = true },
+            new ClickImageAction { TemplateName = "Confirm.png", TemplatePng = template, SimilarityPercent = 87, TimeoutMilliseconds = 4000, PollIntervalMilliseconds = 200, RightClick = true, OffsetX = -3, OffsetY = 6 }
+        ];
+
+        var parsed = _parser.Parse(_parser.Serialize(actions));
+
+        Assert.True(parsed.IsValid, string.Join(Environment.NewLine, parsed.Errors));
+        var wait = Assert.IsType<WaitForImageAction>(parsed.Actions[0]);
+        Assert.Equal(("Play button.png", 91, 7000, 125, 10, 20, 300, 200, true), (wait.TemplateName, wait.SimilarityPercent, wait.TimeoutMilliseconds, wait.PollIntervalMilliseconds, wait.RegionX, wait.RegionY, wait.RegionWidth, wait.RegionHeight, wait.WaitForDisappear));
+        Assert.Equal(template, wait.TemplatePng);
+        var click = Assert.IsType<ClickImageAction>(parsed.Actions[1]);
+        Assert.Equal((true, -3, 6, 87), (click.RightClick, click.OffsetX, click.OffsetY, click.SimilarityPercent));
+        Assert.Equal(template, click.TemplatePng);
+    }
 }

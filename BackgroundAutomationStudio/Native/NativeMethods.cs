@@ -47,6 +47,7 @@ public static class NativeMethods
     public const int SmCyDoubleclk = 37;
     public const int SmCxDrag = 68;
     public const int SmCyDrag = 69;
+    public const uint PwClientOnly = 0x00000001;
     public const int SmXVirtualScreen = 76;
     public const int SmYVirtualScreen = 77;
     public const int SmCxVirtualScreen = 78;
@@ -107,6 +108,9 @@ public static class NativeMethods
     public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
     [DllImport("user32.dll")]
     public static extern bool GetClientRect(IntPtr hwnd, out RECT rect);
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
     [DllImport("user32.dll")]
     public static extern bool ScreenToClient(IntPtr hwnd, ref POINT point);
     [DllImport("user32.dll")]

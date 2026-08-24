@@ -135,7 +135,7 @@ The palette is a cool graphite neutral system with one operational blue accent a
 - **Label** (Regular, 11px): Metadata and named field labels.
 - **Code** (Regular, 14px): Editable DSL; compact machine values use 11px Consolas.
 
-**The Native Readability Rule.** Keep ordinary UI in Segoe UI. Consolas communicates scripts, identifiers, time, or validation output—not brand personality.
+**The Native Readability Rule.** Keep ordinary UI in Segoe UI. Consolas communicates scripts, identifiers, time, or validation output - not brand personality.
 
 ## Layout
 
@@ -172,7 +172,7 @@ Controls and nested information wells use 8px corners, workflow rows use 10px, a
 - **Corner Style:** Major panels use 12px; nested wells use 8px.
 - **Background:** Graphite Panel with darker nested surfaces.
 - **Shadow Strategy:** No shadows.
-- **Internal Padding:** 18px for panels; 8–12px for compact state containers.
+- **Internal Padding:** 18px for panels; 8 - 12px for compact state containers.
 
 ### Inputs / Fields
 
@@ -229,6 +229,10 @@ Clipboard commands live in the Edit and row context menus and reuse the same his
 ### Scroll Actions and Notes
 
 Mouse scroll is a first-class client-relative action beside click and drag. Its editor uses the same X/Y picker and validation system, plus a signed wheel delta where positive means up, negative means down, and 120 represents one notch. The row summary stays compact. Each action may carry one optional 180-character note, shown beneath its summary in muted italic text only when present and serialized as a readable `# NOTE` line before the DSL command.
+
+### Visual Matching Actions
+
+Wait for image and Click matched image use the same focused action editor as the rest of the workflow. The PNG preview appears before tuning controls, followed by similarity, timeout, scan interval, and a compact X/Y/W/H search region. Zero width and height clearly mean the full target client area. Helper copy recommends smaller regions for speed and fewer false matches. The editor scrolls within its graphite container so the action note and Save action remain reachable without enlarging the dialog beyond the desktop.
 
 ### Run Schedule
 

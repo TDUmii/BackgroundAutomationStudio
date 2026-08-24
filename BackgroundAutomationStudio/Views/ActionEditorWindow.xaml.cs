@@ -6,6 +6,8 @@ using System.Windows.Media;
 using BackgroundAutomationStudio.Models;
 using BackgroundAutomationStudio.Native;
 using BackgroundAutomationStudio.Services;
+using Microsoft.Win32;
+using System.IO;
 
 namespace BackgroundAutomationStudio.Views;
 
@@ -32,9 +34,36 @@ public partial class ActionEditorWindow : Window
             return;
         }
         foreach (var combo in FindVisualChildren<ComboBox>(this)) combo.GetBindingExpression(ComboBox.TextProperty)?.UpdateSource();
+        if (Action is ImageScanAction imageAction)
+        {
+            if (!imageAction.HasTemplate) { MessageBox.Show("Choose a PNG image template before saving this action.", "Image template required", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+            if (imageAction.RegionWidth == 0 ^ imageAction.RegionHeight == 0) { MessageBox.Show("Set both search region width and height, or leave both at zero to scan the full target client area.", "Check search region", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+        }
         var keyName = Action switch { KeyPressAction key => key.KeyName, KeyHoldAction hold => hold.KeyName, _ => null };
         if (keyName is not null && !KeyNames.IsSupported(keyName)) { MessageBox.Show($"Unsupported key \"{keyName}\". Use a listed key or a shortcut such as CTRL+C.", "Invalid key", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
         DialogResult = true;
+    }
+    private void ChooseTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        if (Action is not ImageScanAction imageAction) return;
+        var dialog = new OpenFileDialog { Title = LocalizationService.Get("ChoosePng"), Filter = "PNG image (*.png)|*.png", CheckFileExists = true };
+        if (dialog.ShowDialog(this) != true) return;
+        var bytes = File.ReadAllBytes(dialog.FileName);
+        if (bytes.Length > 10 * 1024 * 1024) { MessageBox.Show("Choose a PNG smaller than 10 MB.", "Image is too large", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+        try
+        {
+            using var stream = new MemoryStream(bytes);
+            _ = new System.Windows.Media.Imaging.PngBitmapDecoder(stream, System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat, System.Windows.Media.Imaging.BitmapCacheOption.OnLoad).Frames[0];
+        }
+        catch { MessageBox.Show("The selected file is not a readable PNG image.", "Invalid image", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+        imageAction.TemplateName = Path.GetFileName(dialog.FileName);
+        imageAction.TemplatePng = bytes;
+    }
+    private void ClearTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        if (Action is not ImageScanAction imageAction) return;
+        imageAction.TemplateName = string.Empty;
+        imageAction.TemplatePng = [];
     }
 
     private TextBox? ValidateNumericFields()

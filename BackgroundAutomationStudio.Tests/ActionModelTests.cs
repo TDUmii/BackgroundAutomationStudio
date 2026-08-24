@@ -77,6 +77,28 @@ public sealed class ActionModelTests
         Assert.Equal(resourceKey, PlaybackModes.GetResourceKey(mode));
     }
 
+    [Theory]
+    [InlineData("en")]
+    [InlineData("vi")]
+    public void PlaybackMode_LabelsUseOnlySingleAsciiHyphenSeparators(string language)
+    {
+        LocalizationService.Apply(language);
+        try
+        {
+            foreach (var key in new[] { "AutomaticMode", "GameForegroundMode", "GameBackgroundMode", "UiAutomationMode", "Win32Mode" })
+            {
+                var label = LocalizationService.Get(key);
+                Assert.Contains(" - ", label);
+                Assert.DoesNotContain("--", label);
+                Assert.DoesNotMatch("[‐‑‒–—−]", label);
+            }
+        }
+        finally
+        {
+            LocalizationService.Apply("en");
+        }
+    }
+
     [Fact]
     public void GameInputChord_ResolvesModifiersInPressedOrder()
     {
@@ -131,5 +153,16 @@ public sealed class ActionModelTests
     {
         Assert.Equal(250_000, PlaybackRunOptions.Count(250_000).RepeatCount);
         Assert.Equal(1_000_000, PlaybackRunOptions.Count(int.MaxValue).RepeatCount);
+    }
+
+    [Fact]
+    public void ImageActionClone_DeepCopiesEmbeddedTemplateAndScanSettings()
+    {
+        var original = new ClickImageAction { TemplateName = "target.png", TemplatePng = [1, 2, 3], SimilarityPercent = 92, TimeoutMilliseconds = 8000, PollIntervalMilliseconds = 175, RegionX = 4, RegionY = 5, RegionWidth = 600, RegionHeight = 400, OffsetX = -2, OffsetY = 7, RightClick = true };
+        var clone = Assert.IsType<ClickImageAction>(original.Clone());
+        Assert.Equal(("target.png", 92, 8000, 175, 4, 5, 600, 400, -2, 7, true), (clone.TemplateName, clone.SimilarityPercent, clone.TimeoutMilliseconds, clone.PollIntervalMilliseconds, clone.RegionX, clone.RegionY, clone.RegionWidth, clone.RegionHeight, clone.OffsetX, clone.OffsetY, clone.RightClick));
+        Assert.Equal(original.TemplatePng, clone.TemplatePng);
+        Assert.NotSame(original.TemplatePng, clone.TemplatePng);
+        Assert.NotEqual(original.Id, clone.Id);
     }
 }
