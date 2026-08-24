@@ -198,6 +198,12 @@ Run/Emergency Stop and Pause/Resume form one compact two-column group with a 12p
 
 Main and Settings share one application-level **SlimScrollBar** treatment: an 8px transparent track with a muted graphite thumb, 4px corner radius, and 1px inset. Reuse this shared resource for dense vertical content instead of creating window-specific scrollbar variants.
 
+### Screen Coordinate Overlay
+
+Coordinate authoring uses a transparent, click-through overlay aligned to the foreground target's live client area rather than a miniature map inside the editor. Minor lines mark 50 client pixels, major labeled lines mark 100, and numbered markers reuse the selected pin, diamond, or crosshair treatment. The overlay never activates or accepts input, hides when the target loses foreground, and is disabled during recording and playback. Standard dialogs explicitly paint their complete client background with Graphite Canvas so outer margins never fall back to the white Windows default.
+
+Because the overlay sits over arbitrary third-party content, coordinate labels use white text on near-opaque Graphite backplates, markers keep a white outline, and grid and client-boundary strokes remain translucent so underlying content stays visible. The blue, red, green, amber, and purple marker choices are a spatial-annotation exception to the application palette; never reuse them for app chrome or workflow-state semantics.
+
 ### Workflow Rows
 
 Rows use a 10px corner and compact six-part scan order. Disabled rows use 46% opacity. Selection uses Selected Graphite and a neutral border. Keyboard focus uses the two-pixel Focus Ice outline. Current execution overrides the selected fill with Execution Blue and adds both a left play marker and right-aligned “CURRENT” label.

@@ -40,6 +40,7 @@ public static class NativeMethods
     public const int SwShowNoActivate = 4;
     public const int GwlExStyle = -20;
     public const long WsExToolWindow = 0x00000080L;
+    public const long WsExTransparent = 0x00000020L;
     public const long WsExNoActivate = 0x08000000L;
     public const int SmCxDoubleclk = 36;
     public const int SmCyDoubleclk = 37;

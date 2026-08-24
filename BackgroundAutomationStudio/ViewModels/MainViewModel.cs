@@ -22,6 +22,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly ScriptParser _scriptParser;
     private readonly ProjectService _projectService;
     private readonly IDialogService _dialogs;
+    private readonly CoordinateOverlayService _coordinateOverlay;
     private readonly WorkflowHistory _workflowHistory = new();
     private readonly DispatcherTimer _recordTimer;
     private AutomationProject _project = new();
@@ -41,9 +42,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private RecordChoice _recordChoice;
     private AutomationAction? _actionClipboard;
 
-    public MainViewModel(IWindowManager windowManager, WindowPickerService windowPicker, RecorderService recorder, IAutomationRunner runner, ScriptParser scriptParser, ProjectService projectService, IDialogService dialogs)
+    public MainViewModel(IWindowManager windowManager, WindowPickerService windowPicker, RecorderService recorder, IAutomationRunner runner, ScriptParser scriptParser, ProjectService projectService, IDialogService dialogs, CoordinateOverlayService coordinateOverlay)
     {
-        _windowManager = windowManager; _windowPicker = windowPicker; _recorder = recorder; _runner = runner; _scriptParser = scriptParser; _projectService = projectService; _dialogs = dialogs;
+        _windowManager = windowManager; _windowPicker = windowPicker; _recorder = recorder; _runner = runner; _scriptParser = scriptParser; _projectService = projectService; _dialogs = dialogs; _coordinateOverlay = coordinateOverlay;
         _recordTimer = new(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(250) };
         _recordTimer.Tick += (_, _) => RecordingTime = _recorder.Elapsed.ToString(@"hh\:mm\:ss");
         _runner.CurrentActionChanged += RunnerOnCurrentActionChanged;
@@ -97,15 +98,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string RecordingTime { get => _recordingTime; private set => SetProperty(ref _recordingTime, value); }
     public bool IsModified { get => _isModified; private set { if (SetProperty(ref _isModified, value)) OnPropertyChanged(nameof(ProjectTitle)); } }
     public bool IsPicking { get => _isPicking; private set { if (SetProperty(ref _isPicking, value)) RaiseCommandStates(); } }
-    public bool IsRecording { get => _isRecording; private set { if (SetProperty(ref _isRecording, value)) RaiseCommandStates(); } }
-    public bool IsRunning { get => _isRunning; private set { if (SetProperty(ref _isRunning, value)) RaiseCommandStates(); } }
+    public bool IsRecording { get => _isRecording; private set { if (SetProperty(ref _isRecording, value)) { RaiseCommandStates(); SyncCoordinateOverlay(); } } }
+    public bool IsRunning { get => _isRunning; private set { if (SetProperty(ref _isRunning, value)) { RaiseCommandStates(); SyncCoordinateOverlay(); } } }
     public bool IsPaused { get => _isPaused; private set { if (SetProperty(ref _isPaused, value)) OnPropertyChanged(nameof(PauseButtonText)); } }
     public string PauseButtonText => IsPaused ? LocalizationService.Get("Resume") : LocalizationService.Get("Pause");
     public bool HasTarget => Project.Target is not null;
-    public bool ShowCoordinateMap { get => Project.ShowCoordinateMap; set { if (Project.ShowCoordinateMap == value) return; Project.ShowCoordinateMap = value; OnPropertyChanged(); MarkModified(); } }
-    public bool ShowCoordinateGrid { get => Project.ShowCoordinateGrid; set { if (Project.ShowCoordinateGrid == value) return; Project.ShowCoordinateGrid = value; OnPropertyChanged(); MarkModified(); } }
-    public string MarkerColor { get => Project.MarkerColor; set { var safe = value is "#FF727E" or "#55D6A0" or "#F4B860" or "#B69CFF" ? value : "#74A7FF"; if (Project.MarkerColor == safe) return; Project.MarkerColor = safe; OnPropertyChanged(); MarkModified(); } }
-    public string MarkerShape { get => MarkerShapes.Normalize(Project.MarkerShape); set { var safe = MarkerShapes.Normalize(value); if (Project.MarkerShape == safe) return; Project.MarkerShape = safe; OnPropertyChanged(); MarkModified(); } }
+    public bool ShowCoordinateMap { get => Project.ShowCoordinateMap; set { if (Project.ShowCoordinateMap == value) return; Project.ShowCoordinateMap = value; OnPropertyChanged(); MarkModified(); SyncCoordinateOverlay(); } }
+    public bool ShowCoordinateGrid { get => Project.ShowCoordinateGrid; set { if (Project.ShowCoordinateGrid == value) return; Project.ShowCoordinateGrid = value; OnPropertyChanged(); MarkModified(); SyncCoordinateOverlay(); } }
+    public string MarkerColor { get => Project.MarkerColor; set { var safe = value is "#FF727E" or "#55D6A0" or "#F4B860" or "#B69CFF" ? value : "#74A7FF"; if (Project.MarkerColor == safe) return; Project.MarkerColor = safe; OnPropertyChanged(); MarkModified(); SyncCoordinateOverlay(); } }
+    public string MarkerShape { get => MarkerShapes.Normalize(Project.MarkerShape); set { var safe = MarkerShapes.Normalize(value); if (Project.MarkerShape == safe) return; Project.MarkerShape = safe; OnPropertyChanged(); MarkModified(); SyncCoordinateOverlay(); } }
 
     public ICommand NewCommand { get; }
     public ICommand OpenCommand { get; }
@@ -227,7 +228,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var target = await _windowPicker.PickWindowAsync(hwnd); owner.Opacity = 1; if (target is null) return;
             if (Project.Target is { RecordedWidth: > 0 } existing && string.Equals(existing.ProcessName, target.ProcessName, StringComparison.OrdinalIgnoreCase) && string.Equals(existing.WindowClassName, target.WindowClassName, StringComparison.Ordinal))
             { target.RecordedX = existing.RecordedX; target.RecordedY = existing.RecordedY; target.RecordedWidth = existing.RecordedWidth; target.RecordedHeight = existing.RecordedHeight; _windowManager.RestoreLayout(target, new IntPtr(target.LastKnownHwnd)); }
-            Project.Target = target; OnPropertyChanged(nameof(Project)); OnPropertyChanged(nameof(TargetSummary)); OnPropertyChanged(nameof(HasTarget)); MarkModified(); StatusText = LocalizationService.Language == "vi" ? "Đã chọn cửa sổ đích và ghi nhận bố cục" : "Target selected and layout captured";
+            Project.Target = target; OnPropertyChanged(nameof(Project)); OnPropertyChanged(nameof(TargetSummary)); OnPropertyChanged(nameof(HasTarget)); MarkModified(); SyncCoordinateOverlay(); StatusText = LocalizationService.Language == "vi" ? "Đã chọn cửa sổ đích và ghi nhận bố cục" : "Target selected and layout captured";
         }
         catch (Exception ex) { Application.Current.MainWindow.Opacity = 1; _dialogs.Error("Window selection failed", ex.Message); StatusText = "Window selection cancelled"; }
         finally { IsPicking = false; }
@@ -313,6 +314,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (match is not null) { call.FunctionId = match.Id; call.FunctionName = match.Name; }
         }
         MarkModified(); SyncScriptFromVisual(); CaptureWorkflowHistory(); RaiseCommandStates();
+        SyncCoordinateOverlay();
         StatusText = LocalizationService.Language == "vi" ? $"Đã cập nhật {Functions.Count} hàm dùng lại" : $"Updated {Functions.Count} reusable function(s)";
         return true;
     }
@@ -368,13 +370,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void ReplaceActions(IEnumerable<AutomationAction> actions) { DetachCollection(Actions); Project.Actions = new(actions); OnPropertyChanged(nameof(Actions)); AttachCollection(Actions); SelectedAction = null; SyncScriptFromVisual(); CaptureWorkflowHistory(); RaiseCommandStates(); }
     private void AttachCollection(ObservableCollection<AutomationAction> actions) { actions.CollectionChanged += ActionsOnCollectionChanged; foreach (var action in actions) action.PropertyChanged += ActionOnPropertyChanged; }
     private void DetachCollection(ObservableCollection<AutomationAction> actions) { actions.CollectionChanged -= ActionsOnCollectionChanged; foreach (var action in actions) action.PropertyChanged -= ActionOnPropertyChanged; }
-    private void ActionsOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) { if (e.OldItems is not null) foreach (AutomationAction action in e.OldItems) action.PropertyChanged -= ActionOnPropertyChanged; if (e.NewItems is not null) foreach (AutomationAction action in e.NewItems) action.PropertyChanged += ActionOnPropertyChanged; MarkModified(); SyncScriptFromVisual(); CaptureWorkflowHistory(); RaiseCommandStates(); }
-    private void ActionOnPropertyChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(AutomationAction.IsCurrent)) return; MarkModified(); SyncScriptFromVisual(); CaptureWorkflowHistory(); }
+    private void ActionsOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) { if (e.OldItems is not null) foreach (AutomationAction action in e.OldItems) action.PropertyChanged -= ActionOnPropertyChanged; if (e.NewItems is not null) foreach (AutomationAction action in e.NewItems) action.PropertyChanged += ActionOnPropertyChanged; MarkModified(); SyncScriptFromVisual(); CaptureWorkflowHistory(); RaiseCommandStates(); SyncCoordinateOverlay(); }
+    private void ActionOnPropertyChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(AutomationAction.IsCurrent)) return; MarkModified(); SyncScriptFromVisual(); CaptureWorkflowHistory(); SyncCoordinateOverlay(); }
     private void SyncScriptFromVisual() { if (_syncingScript) return; _syncingScript = true; try { _scriptText = _scriptParser.Serialize(Actions); OnPropertyChanged(nameof(ScriptText)); ScriptErrors = string.Empty; } finally { _syncingScript = false; } }
     private void MarkModified() { if (!_syncingScript) IsModified = true; }
     private void CaptureWorkflowHistory() { if (!_suspendWorkflowHistory && _workflowHistory.Capture(Actions)) RaiseCommandStates(); }
     private void RunnerOnCurrentActionChanged(object? sender, AutomationAction? current) => Application.Current.Dispatcher.Invoke(() => { foreach (var action in Actions) action.IsCurrent = action.Id == current?.Id; });
-    private void NotifyScheduleChanged() { OnPropertyChanged(nameof(RepeatMode)); OnPropertyChanged(nameof(RepeatCount)); OnPropertyChanged(nameof(RepeatDurationMinutes)); OnPropertyChanged(nameof(StopAtTime)); OnPropertyChanged(nameof(ShowCoordinateMap)); OnPropertyChanged(nameof(ShowCoordinateGrid)); OnPropertyChanged(nameof(MarkerColor)); OnPropertyChanged(nameof(MarkerShape)); OnPropertyChanged(nameof(Functions)); }
+    private void NotifyScheduleChanged() { OnPropertyChanged(nameof(RepeatMode)); OnPropertyChanged(nameof(RepeatCount)); OnPropertyChanged(nameof(RepeatDurationMinutes)); OnPropertyChanged(nameof(StopAtTime)); OnPropertyChanged(nameof(ShowCoordinateMap)); OnPropertyChanged(nameof(ShowCoordinateGrid)); OnPropertyChanged(nameof(MarkerColor)); OnPropertyChanged(nameof(MarkerShape)); OnPropertyChanged(nameof(Functions)); SyncCoordinateOverlay(); }
+    private void SyncCoordinateOverlay()
+    {
+        IReadOnlyList<AutomationAction> visibleActions;
+        try { visibleActions = WorkflowFunctionExpander.Expand(Actions, Functions); }
+        catch { visibleActions = Actions.ToList(); }
+        _coordinateOverlay.Configure(ShowCoordinateMap && !IsRecording && !IsRunning, Project.Target, visibleActions, ShowCoordinateGrid, MarkerColor, MarkerShape);
+    }
     private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, UndoCommand, RedoCommand, DuplicateCommand, CopyCommand, CutCommand, PasteCommand, ToggleEnabledCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand, ManageFunctionsCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
-    public void Dispose() { _recordTimer.Stop(); _recorder.Dispose(); _runner.Stop(); if (_runner is IDisposable disposable) disposable.Dispose(); _windowPicker.Dispose(); }
+    public void Dispose() { _recordTimer.Stop(); _coordinateOverlay.Dispose(); _recorder.Dispose(); _runner.Stop(); if (_runner is IDisposable disposable) disposable.Dispose(); _windowPicker.Dispose(); }
 }

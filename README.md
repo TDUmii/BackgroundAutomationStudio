@@ -4,9 +4,9 @@ Build repeatable Windows workflows around a selected target window while keeping
 
 ## Download for Windows
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.3.0/BackgroundAutomationStudio.exe)**
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.3.1/BackgroundAutomationStudio.exe)**
 
-The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.3.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.3.0).
+The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.3.1 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.3.1).
 
 ## What makes it different
 
@@ -17,14 +17,14 @@ The release is a self-contained Windows x64 executable; no separate .NET install
 | Honest compatibility | Five clearly named engines expose the focus, pointer, and raw-input tradeoffs before you run. |
 | Two editing styles | The visual timeline and readable DSL always represent the same workflow. |
 | Reuse without clutter | Named functions turn repeated sequences into a single `CALL` step and support safe nesting. |
-| Spatial overview | Coordinate Map shows every current pointer point, optional grid lines, hover coordinates, and customizable markers. |
+| Spatial overview | A click-through overlay draws the live client-coordinate grid and every current point directly over the foreground target. |
 | Local-first | Projects are ordinary JSON files. There are no accounts, telemetry, cloud services, or background agents. |
 
 ## Key features
 
 - Record clicks, right clicks, double clicks, wheel scrolling, text, key presses, held keys, and drags from the selected target only.
 - Add precise click, drag, scroll, wait, key, text, pointer-move, and function-call steps manually.
-- Inspect all pointer points together with Coordinate Map; toggle its grid and choose blue, red, green, amber, or purple pin, diamond, or crosshair markers.
+- Inspect points directly on the target with the Screen Grid overlay; toggle grid lines and choose blue, red, green, amber, or purple pin, diamond, or crosshair markers.
 - Create reusable functions from the same DSL, call them from any workflow position, nest them, and receive a clear error for missing or circular calls.
 - Edit, reorder, annotate, copy, cut, paste, duplicate, skip, delete, undo, and redo workflow steps.
 - Run a fixed count, continuously until stopped, for a duration, or until a clock time.
