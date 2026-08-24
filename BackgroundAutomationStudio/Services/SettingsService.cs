@@ -22,11 +22,13 @@ public sealed class SettingsService
         if (!HotkeyParser.TryParse(Current.RunHotkey, out _, out _)) Current.RunHotkey = "CTRL+SHIFT+F9";
         if (!HotkeyParser.TryParse(Current.PauseHotkey, out _, out _) || string.Equals(Current.RunHotkey, Current.PauseHotkey, StringComparison.OrdinalIgnoreCase)) Current.PauseHotkey = "CTRL+SHIFT+F10";
         Current.PlaybackMode = PlaybackModes.Normalize(Current.PlaybackMode);
+        Current.GamePressDurationMilliseconds = AppSettings.NormalizeGamePressDuration(Current.GamePressDurationMilliseconds);
     }
 
     public void Save(AppSettings settings)
     {
         settings.PlaybackMode = PlaybackModes.Normalize(settings.PlaybackMode);
+        settings.GamePressDurationMilliseconds = AppSettings.NormalizeGamePressDuration(settings.GamePressDurationMilliseconds);
         if (!HotkeyParser.TryParse(settings.PauseHotkey, out _, out _) || string.Equals(settings.RunHotkey, settings.PauseHotkey, StringComparison.OrdinalIgnoreCase)) settings.PauseHotkey = "CTRL+SHIFT+F10";
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         File.WriteAllText(_path, JsonSerializer.Serialize(settings, Options));

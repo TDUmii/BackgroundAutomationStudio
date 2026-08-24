@@ -20,6 +20,17 @@ public sealed class AppSettingsTests
         Assert.True(restored.AlwaysOnTop);
     }
 
+    [Theory]
+    [InlineData(-1, 10)]
+    [InlineData(45, 45)]
+    [InlineData(5000, 1000)]
+    public void GamePressDuration_NormalizesToSafeRange(int value, int expected) =>
+        Assert.Equal(expected, AppSettings.NormalizeGamePressDuration(value));
+
+    [Fact]
+    public void GamePressDuration_DefaultsToReliableMultiFrameValue() =>
+        Assert.Equal(45, new AppSettings().GamePressDurationMilliseconds);
+
     [Fact]
     public void FrozenUnderlineTransform_IsClonedBeforeAnimation()
     {

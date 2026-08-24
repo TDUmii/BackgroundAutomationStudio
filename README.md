@@ -4,9 +4,9 @@ Build repeatable Windows workflows around a selected target window while keeping
 
 ## Download for Windows
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.3.3/BackgroundAutomationStudio.exe)**
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.3.4/BackgroundAutomationStudio.exe)**
 
-The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.3.3 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.3.3).
+The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.3.4 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.3.4).
 
 ## What makes it different
 
@@ -30,6 +30,7 @@ The release is a self-contained Windows x64 executable; no separate .NET install
 - Edit, reorder, annotate, copy, cut, paste, duplicate, skip, delete, undo, and redo workflow steps.
 - Run a fixed count, continuously until stopped, for a duration, or until a clock time.
 - Configure independent global Run/Emergency Stop and Pause/Resume shortcuts.
+- Tune how long Engine 2 holds each mouse button or key, with a reliable 45 ms default for frame-polled input.
 - Keep the target covered or move it while compatible background playback continues.
 - Switch the complete interface between English and Vietnamese; English is the default.
 - Save and reopen portable local project files.
@@ -39,7 +40,7 @@ The release is a self-contained Windows x64 executable; no separate .NET install
 | Mode | Use it when | Behavior and limit |
 | --- | --- | --- |
 | **1 — Strict background** | The target uses standard controls and your focus must remain untouched. | Sends semantic or Win32 input without activating the target. Raw-input games normally ignore this mode. |
-| **2 — Foreground input** | Maximum raw-input game compatibility matters more than background use. | Run activates the selected target once, then uses the physical pointer and normal Windows input stream. It pauses safely if the target later loses focus. |
+| **2 — Foreground input** | Maximum raw-input game compatibility matters more than background use. | Run activates the selected target once, settles the pointer before each click, and holds mouse buttons or keys for the configured duration. It pauses safely if the target later loses focus. |
 | **3 — Background Engine v2** | You want to try covered-window delivery for a target that accepts window messages. | Resolves child controls and sends synthetic focus messages without activation. Queued delivery is reported separately because raw-input software may ignore every action. |
 | **4 — Modern controls** | A custom modern control does not respond to strict background delivery. | Adds UI Automation compatibility, but the target may activate and interrupt typing or IME composition. |
 | **5 — Classic Win32 messages** | The target uses legacy desktop controls. | Sends direct window messages while leaving your pointer and focus free. Raw-input games normally ignore these messages. |

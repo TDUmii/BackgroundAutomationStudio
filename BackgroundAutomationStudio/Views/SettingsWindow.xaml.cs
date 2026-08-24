@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
 using System.Windows.Input;
 using System.Windows.Threading;
 using BackgroundAutomationStudio.Models;
@@ -19,6 +20,7 @@ public partial class SettingsWindow : Window
         _original = settings;
         HotkeyBox.Text = settings.RunHotkey;
         PauseHotkeyBox.Text = settings.PauseHotkey;
+        GamePressDurationBox.Text = AppSettings.NormalizeGamePressDuration(settings.GamePressDurationMilliseconds).ToString();
         if (settings.Language == "vi") VietnameseRadio.IsChecked = true; else EnglishRadio.IsChecked = true;
         switch (PlaybackModes.Normalize(settings.PlaybackMode))
         {
@@ -98,12 +100,26 @@ public partial class SettingsWindow : Window
             PauseHotkeyError.Visibility = Visibility.Visible;
             return;
         }
+        if (!int.TryParse(GamePressDurationBox.Text, out var gamePressDuration) ||
+            gamePressDuration < AppSettings.MinimumGamePressDurationMilliseconds ||
+            gamePressDuration > AppSettings.MaximumGamePressDurationMilliseconds)
+        {
+            GamePressDurationError.Text = VietnameseRadio.IsChecked == true ? "Nhập từ 10 đến 1000 mili giây." : "Enter a value from 10 to 1000 milliseconds.";
+            AutomationProperties.SetHelpText(GamePressDurationBox, GamePressDurationError.Text);
+            GamePressDurationError.Visibility = Visibility.Visible;
+            GamePressDurationBox.Focus();
+            GamePressDurationBox.SelectAll();
+            return;
+        }
+        GamePressDurationError.Visibility = Visibility.Collapsed;
+        AutomationProperties.SetHelpText(GamePressDurationBox, LocalizationService.Get("GamePressDurationHelp"));
         Result = new AppSettings
         {
             Language = VietnameseRadio.IsChecked == true ? "vi" : "en",
             RunHotkey = HotkeyBox.Text,
             PauseHotkey = PauseHotkeyBox.Text,
             AlwaysOnTop = _original.AlwaysOnTop,
+            GamePressDurationMilliseconds = gamePressDuration,
             PlaybackMode = UiAutomationRadio.IsChecked == true ? PlaybackModes.UiAutomation
                 : Win32Radio.IsChecked == true ? PlaybackModes.Win32Messages
                 : GameForegroundRadio.IsChecked == true ? PlaybackModes.GameForeground

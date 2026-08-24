@@ -216,6 +216,8 @@ The recording banner uses a dark red surface and muted red border. An eight-pixe
 
 Settings presents five full-width, text-led choices in one continuous list: Strict background, Foreground input, Background Engine v2 - experimental, Modern controls that may take focus, and Classic Win32 messages. Each choice states its purpose, focus or pointer consequence, and main limit; uses the established graphite/Execution Blue selection treatment; and remains keyboard focusable. Compatibility copy distinguishes a covered window from minimized and fully hidden states so the interface does not promise universal hidden-window automation.
 
+Foreground input timing is one compact numeric setting beneath the engine list. It uses milliseconds, defaults to 45, accepts 10 through 1000, and explains that a longer hold can help frame-polled targets detect quick mouse and keyboard presses. Validation names the range, focuses the field, and selects its value for immediate correction.
+
 During a run, the activation shield prevents ordinary target activation and the status bar distinguishes focus-safe semantic commands, Win32 fallback, and explicitly requested focus-unsafe UI Automation. Playback never restores the target's recorded desktop position. A visible target can be dragged while running because every action resolves its client-relative coordinate against the current window position.
 
 ### Editor History

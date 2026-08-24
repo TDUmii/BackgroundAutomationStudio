@@ -40,6 +40,13 @@
                 <RadioButton x:Name="Win32Radio" GroupName="PlaybackMode" Style="{StaticResource PlaybackChoice}" AutomationProperties.Name="Classic Win32 messages mode">
                     <StackPanel><TextBlock Text="{DynamicResource Win32Mode}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource Win32ModeHelp}" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
                 </RadioButton>
+                <Border Background="{StaticResource PanelRaised}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,12,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,16,0"><TextBlock x:Name="GamePressDurationLabel" Text="{DynamicResource GamePressDuration}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource GamePressDurationHelp}" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
+                        <StackPanel Grid.Column="1"><TextBlock Text="{DynamicResource Milliseconds}" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,0,0,5"/><TextBox x:Name="GamePressDurationBox" FontFamily="Consolas" FontSize="15" MinHeight="42" VerticalContentAlignment="Center" AutomationProperties.LabeledBy="{Binding ElementName=GamePressDurationLabel}" AutomationProperties.HelpText="{DynamicResource GamePressDurationHelp}"/><TextBlock x:Name="GamePressDurationError" Foreground="#FFB8BE" Margin="0,7,0,0" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive"/></StackPanel>
+                    </Grid>
+                </Border>
                 <TextBlock Text="{DynamicResource Compatibility}" Foreground="{StaticResource TextSecondary}" Margin="0,10,0,0" TextWrapping="Wrap"/>
             </StackPanel>
             </ScrollViewer>

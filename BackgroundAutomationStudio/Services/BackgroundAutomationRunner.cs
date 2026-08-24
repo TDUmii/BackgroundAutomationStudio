@@ -9,14 +9,16 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
 {
     private readonly IWindowManager _windowManager;
     private readonly Func<string> _playbackModeProvider;
+    private readonly Func<int> _gamePressDurationProvider;
     private readonly ManualResetEventSlim _pauseGate = new(true);
     private CancellationTokenSource? _runCts;
     private volatile bool _autoFocusPaused;
 
-    public BackgroundAutomationRunner(IWindowManager windowManager, Func<string>? playbackModeProvider = null)
+    public BackgroundAutomationRunner(IWindowManager windowManager, Func<string>? playbackModeProvider = null, Func<int>? gamePressDurationProvider = null)
     {
         _windowManager = windowManager;
         _playbackModeProvider = playbackModeProvider ?? (() => PlaybackModes.Automatic);
+        _gamePressDurationProvider = gamePressDurationProvider ?? (() => AppSettings.DefaultGamePressDurationMilliseconds);
     }
 
     public bool IsRunning { get; private set; }
@@ -45,6 +47,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         var engineLabel = $"{LocalizationService.Get("EngineActive")} {PlaybackModes.GetIndex(playbackMode)} · {LocalizationService.Get(PlaybackModes.GetResourceKey(playbackMode))}";
         var gameForeground = playbackMode == PlaybackModes.GameForeground;
         var gameBackground = playbackMode == PlaybackModes.GameBackground;
+        var gamePressDuration = AppSettings.NormalizeGamePressDuration(_gamePressDurationProvider());
         _runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var token = _runCts.Token;
         IsRunning = true;
@@ -110,7 +113,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                     }
                     else if (gameForeground)
                     {
-                        await GameInputDispatcher.DispatchAsync(hwnd, action, isReady, waitUntilReady, token);
+                        await GameInputDispatcher.DispatchAsync(hwnd, action, gamePressDuration, isReady, waitUntilReady, token);
                         StatusChanged?.Invoke(this, L("Foreground game input sent while the target is active", "Đã gửi input game khi cửa sổ đích đang hoạt động"));
                     }
                     else if (gameBackground)

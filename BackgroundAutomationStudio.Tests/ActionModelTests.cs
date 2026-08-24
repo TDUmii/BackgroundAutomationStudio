@@ -84,6 +84,30 @@ public sealed class ActionModelTests
     }
 
     [Theory]
+    [InlineData(10, 8)]
+    [InlineData(45, 22)]
+    [InlineData(100, 40)]
+    [InlineData(1000, 40)]
+    public void GameInputTiming_AllowsPointerMoveToSettleBeforePress(int pressDuration, int expectedSettleDuration) =>
+        Assert.Equal(expectedSettleDuration, GameInputDispatcher.GetPointerSettleDuration(pressDuration));
+
+    [Theory]
+    [InlineData(45, 500, 45)]
+    [InlineData(1000, 500, 166)]
+    [InlineData(1000, 300, 100)]
+    public void GameInputTiming_CapsDoubleClickHoldBelowSystemCadence(int configuredDuration, int systemDoubleClickTime, int expectedPressDuration)
+    {
+        var pressDuration = GameInputDispatcher.GetDoubleClickPressDuration(configuredDuration, systemDoubleClickTime);
+        var gapDuration = GameInputDispatcher.GetDoubleClickGapDuration(systemDoubleClickTime);
+        Assert.Equal(expectedPressDuration, pressDuration);
+        Assert.True(pressDuration + gapDuration < systemDoubleClickTime);
+    }
+
+    [Fact]
+    public async Task GameInputTiming_StopsHeldPressImmediatelyWhenTargetLosesFocus() =>
+        Assert.False(await GameInputDispatcher.DelayWhileReadyAsync(1000, () => false, CancellationToken.None));
+
+    [Theory]
     [InlineData(null, RepeatModes.Count)]
     [InlineData("", RepeatModes.Count)]
     [InlineData("Unexpected", RepeatModes.Count)]

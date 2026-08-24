@@ -2,11 +2,19 @@ namespace BackgroundAutomationStudio.Models;
 
 public sealed class AppSettings
 {
+    public const int DefaultGamePressDurationMilliseconds = 45;
+    public const int MinimumGamePressDurationMilliseconds = 10;
+    public const int MaximumGamePressDurationMilliseconds = 1000;
+
     public string Language { get; set; } = "en";
     public string RunHotkey { get; set; } = "CTRL+SHIFT+F9";
     public string PauseHotkey { get; set; } = "CTRL+SHIFT+F10";
     public string PlaybackMode { get; set; } = PlaybackModes.Automatic;
+    public int GamePressDurationMilliseconds { get; set; } = DefaultGamePressDurationMilliseconds;
     public bool AlwaysOnTop { get; set; }
+
+    public static int NormalizeGamePressDuration(int value) =>
+        Math.Clamp(value, MinimumGamePressDurationMilliseconds, MaximumGamePressDurationMilliseconds);
 }
 
 public static class PlaybackModes
