@@ -66,7 +66,9 @@ public partial class MainWindow : Window
     private static void AnimateTopMenuUnderline(Button button, bool show)
     {
         button.ApplyTemplate();
-        if (button.Template.FindName("Underline", button) is not Border underline || underline.RenderTransform is not ScaleTransform scale) return;
+        if (button.Template.FindName("Underline", button) is not Border underline || underline.RenderTransform is not ScaleTransform templateScale) return;
+        var scale = EnsureMutableScaleTransform(templateScale);
+        if (!ReferenceEquals(scale, templateScale)) underline.RenderTransform = scale;
         if (!SystemParameters.ClientAreaAnimation)
         {
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
@@ -80,6 +82,9 @@ public partial class MainWindow : Window
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(show ? 1 : 0, duration) { EasingFunction = easing });
         underline.BeginAnimation(OpacityProperty, new DoubleAnimation(show ? 1 : 0, duration) { EasingFunction = easing });
     }
+
+    internal static ScaleTransform EnsureMutableScaleTransform(ScaleTransform transform) =>
+        transform.IsFrozen ? transform.Clone() : transform;
     private void Window_SourceInitialized(object? sender, EventArgs e) => RegisterHotkey(true);
 
     private void PinButton_Click(object sender, RoutedEventArgs e)

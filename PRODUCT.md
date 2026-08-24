@@ -34,7 +34,7 @@ Version 2.1 includes window selection and resolution, explicit recording, click/
 
 ## Brand Commitments
 
-The product name is Background Automation Studio. The version label is “Version 2.1 - Dark Shell & Pin”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
+The product name is Background Automation Studio. The version label is “Version 2.1.1 - Dark Shell Stability”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
 
 ## Evidence on Hand
 

@@ -6,9 +6,9 @@ Background Automation Studio is a Windows 10/11 desktop application for recordin
 
 Download the ready-to-run, self-contained Windows x64 application:
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.1.0/BackgroundAutomationStudio.exe)**
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.1.1/BackgroundAutomationStudio.exe)**
 
-No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v2.1.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.1.0).
+No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v2.1.1 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.1.1).
 
 ## Features
 

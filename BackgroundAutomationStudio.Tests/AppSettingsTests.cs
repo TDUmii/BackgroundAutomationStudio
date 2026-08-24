@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Windows.Media;
+using BackgroundAutomationStudio;
 using BackgroundAutomationStudio.Models;
 
 namespace BackgroundAutomationStudio.Tests;
@@ -16,5 +18,19 @@ public sealed class AppSettingsTests
 
         Assert.NotNull(restored);
         Assert.True(restored.AlwaysOnTop);
+    }
+
+    [Fact]
+    public void FrozenUnderlineTransform_IsClonedBeforeAnimation()
+    {
+        var frozen = new ScaleTransform(0, 1);
+        frozen.Freeze();
+
+        var mutable = MainWindow.EnsureMutableScaleTransform(frozen);
+
+        Assert.NotSame(frozen, mutable);
+        Assert.False(mutable.IsFrozen);
+        Assert.Equal(0, mutable.ScaleX);
+        Assert.Equal(1, mutable.ScaleY);
     }
 }
