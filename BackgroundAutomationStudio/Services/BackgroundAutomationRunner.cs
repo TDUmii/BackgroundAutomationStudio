@@ -50,6 +50,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         _pauseGate.Set();
         _autoFocusPaused = false;
         using var activationShield = gameForeground ? null : new ActivationShield(hwnd);
+        using var syntheticFocus = gameBackground ? new SyntheticFocusSession(hwnd) : null;
         using var foregroundGuardCts = gameForeground ? null : CancellationTokenSource.CreateLinkedTokenSource(token);
         var foregroundGuardTask = foregroundGuardCts is null ? null : GuardForegroundContinuouslyAsync(hwnd, foregroundGuardCts.Token);
         Func<CancellationToken, Task> waitUntilReady = gameForeground
@@ -93,6 +94,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                     var iterationLabel = repeatMode == RepeatModes.Count ? $"{iteration}/{repeatCount}" : $"{iteration}/∞";
                     StatusChanged?.Invoke(this, L($"Run {iterationLabel} - {action.ActionType}", $"Lần chạy {iterationLabel} - {action.ActionType}"));
                     if (action.DelayBefore > 0) await DelayWithPauseAsync(action.DelayBefore, waitUntilReady, token);
+                    syntheticFocus?.Refresh();
                     if (action is WaitAction wait)
                     {
                         await DelayWithPauseAsync(wait.Milliseconds, waitUntilReady, token);
@@ -214,7 +216,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             var current = NativeMethods.GetForegroundWindow();
             if (IsTargetWindow(target, current)) RestoreUserForegroundIfStolen(target, userForeground);
             else if (current != IntPtr.Zero && NativeMethods.IsWindow(current)) userForeground = current;
-            await Task.Delay(1, token);
+            await Task.Delay(16, token);
         }
     }
 
@@ -320,14 +322,15 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             case DragAction drag: await PostDragAsync(root, drag, waitUntilReady, token); break;
         }
         StatusChanged?.Invoke(this, L(
-            "Experimental targeted game input sent without activation - acceptance cannot be detected",
-            "Đã gửi input game nhắm đích thử nghiệm mà không kích hoạt - không thể tự phát hiện game có nhận hay không"));
+            "Background Engine v2 queued targeted input without activation - processing cannot be verified",
+            "Background Engine v2 đã xếp input nhắm đích mà không kích hoạt - không thể xác minh app đã xử lý"));
     }
 
     private async Task PostKeyHoldAsync(IntPtr root, KeyHoldAction action, Func<CancellationToken, Task> waitUntilReady, CancellationToken token)
     {
         var recipient = GetKeyboardRecipient(root);
         var keys = action.KeyName.ToUpperInvariant().Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(ToVirtualKey).ToArray();
+        var systemKeyChord = keys.Contains((ushort)0x12);
         var remaining = Math.Max(1, action.Milliseconds);
         var held = false;
         try
@@ -336,10 +339,10 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             {
                 if (!_pauseGate.IsSet)
                 {
-                    if (held) { foreach (var key in keys.Reverse()) PostKeyMessage(recipient, key, true); held = false; }
+                    if (held) { foreach (var key in keys.Reverse()) PostKeyMessage(recipient, key, true, systemKeyChord); held = false; }
                     await waitUntilReady(token);
                 }
-                if (!held) { foreach (var key in keys) PostKeyMessage(recipient, key, false); held = true; }
+                if (!held) { foreach (var key in keys) PostKeyMessage(recipient, key, false, systemKeyChord); held = true; }
                 var slice = Math.Min(remaining, 25);
                 await Task.Delay(slice, token);
                 remaining -= slice;
@@ -347,7 +350,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         }
         finally
         {
-            if (held) foreach (var key in keys.Reverse()) PostKeyMessage(recipient, key, true);
+            if (held) foreach (var key in keys.Reverse()) PostKeyMessage(recipient, key, true, systemKeyChord);
         }
     }
 
@@ -356,30 +359,34 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         var duration = Math.Max(1, action.Milliseconds);
         var steps = Math.Clamp(duration / 16, 2, 240);
         var held = false;
-        var current = PackPoint(action.StartX, action.StartY);
+        var resolved = BackgroundMessageTargetResolver.Resolve(root, action.StartX, action.StartY);
+        var recipient = resolved.Hwnd;
+        var current = PackPoint(resolved.ClientPoint.X, resolved.ClientPoint.Y);
         try
         {
-            Post(root, NativeMethods.WmLButtonDown, new IntPtr(NativeMethods.MkLButton), current);
+            Post(recipient, NativeMethods.WmMouseMove, IntPtr.Zero, current);
+            Post(recipient, NativeMethods.WmLButtonDown, new IntPtr(NativeMethods.MkLButton), current);
             held = true;
             for (var step = 1; step <= steps; step++)
             {
                 if (!_pauseGate.IsSet)
                 {
-                    if (held) { Post(root, NativeMethods.WmLButtonUp, IntPtr.Zero, current); held = false; }
+                    if (held) { Post(recipient, NativeMethods.WmLButtonUp, IntPtr.Zero, current); held = false; }
                     await waitUntilReady(token);
                 }
                 var progress = step / (double)steps;
                 var x = (int)Math.Round(action.StartX + (action.EndX - action.StartX) * progress);
                 var y = (int)Math.Round(action.StartY + (action.EndY - action.StartY) * progress);
-                current = PackPoint(x, y);
-                if (!held) { Post(root, NativeMethods.WmLButtonDown, new IntPtr(NativeMethods.MkLButton), current); held = true; }
-                Post(root, NativeMethods.WmMouseMove, new IntPtr(NativeMethods.MkLButton), current);
+                var recipientPoint = BackgroundMessageTargetResolver.TranslateRootPoint(root, recipient, x, y);
+                current = PackPoint(recipientPoint.X, recipientPoint.Y);
+                if (!held) { Post(recipient, NativeMethods.WmLButtonDown, new IntPtr(NativeMethods.MkLButton), current); held = true; }
+                Post(recipient, NativeMethods.WmMouseMove, new IntPtr(NativeMethods.MkLButton), current);
                 await Task.Delay(Math.Max(1, duration / steps), token);
             }
         }
         finally
         {
-            if (held) Post(root, NativeMethods.WmLButtonUp, IntPtr.Zero, current);
+            if (held) Post(recipient, NativeMethods.WmLButtonUp, IntPtr.Zero, current);
         }
     }
 
@@ -406,16 +413,13 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
 
     private static void PostClick(IntPtr root, PointerAction action, bool right, bool twice)
     {
-        var screen = new POINT(action.ClientX, action.ClientY);
-        if (!NativeMethods.ClientToScreen(root, ref screen)) throw new InvalidOperationException("Could not convert the client click point.");
-        var recipient = NativeMethods.WindowFromPoint(screen);
-        if (recipient == IntPtr.Zero || NativeMethods.GetAncestor(recipient, NativeMethods.GaRoot) != root) recipient = root;
-        var client = screen;
-        if (!NativeMethods.ScreenToClient(recipient, ref client)) throw new InvalidOperationException("Could not address the target control.");
-        var position = PackPoint(client.X, client.Y);
+        var resolved = BackgroundMessageTargetResolver.Resolve(root, action.ClientX, action.ClientY);
+        var recipient = resolved.Hwnd;
+        var position = PackPoint(resolved.ClientPoint.X, resolved.ClientPoint.Y);
         var down = right ? NativeMethods.WmRButtonDown : NativeMethods.WmLButtonDown;
         var up = right ? NativeMethods.WmRButtonUp : NativeMethods.WmLButtonUp;
         var state = right ? NativeMethods.MkRButton : NativeMethods.MkLButton;
+        Post(recipient, NativeMethods.WmMouseMove, IntPtr.Zero, position);
         Post(recipient, down, new IntPtr(state), position);
         Post(recipient, up, IntPtr.Zero, position);
         if (twice)
@@ -435,8 +439,9 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     {
         var recipient = GetKeyboardRecipient(root);
         var keys = keyName.ToUpperInvariant().Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(ToVirtualKey).ToArray();
-        foreach (var key in keys) PostKeyMessage(recipient, key, false);
-        foreach (var key in keys.Reverse()) PostKeyMessage(recipient, key, true);
+        var systemKeyChord = keys.Contains((ushort)0x12);
+        foreach (var key in keys) PostKeyMessage(recipient, key, false, systemKeyChord);
+        foreach (var key in keys.Reverse()) PostKeyMessage(recipient, key, true, systemKeyChord);
     }
 
     private static IntPtr GetKeyboardRecipient(IntPtr root)
@@ -462,13 +467,21 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         return coreWindow;
     }
 
-    private static void PostKeyMessage(IntPtr hwnd, ushort key, bool up)
+    private static void PostKeyMessage(IntPtr hwnd, ushort key, bool up, bool systemKeyChord = false)
     {
         var scan = NativeMethods.MapVirtualKey(key, NativeMethods.MapvkVkToVsc);
         var lParam = 1L | ((long)scan << 16);
+        if (IsExtendedKey(key)) lParam |= 1L << 24;
+        var systemKey = systemKeyChord || key == 0x12;
+        if (systemKey) lParam |= 1L << 29;
         if (up) lParam |= 1L << 30 | 1L << 31;
-        Post(hwnd, up ? NativeMethods.WmKeyUp : NativeMethods.WmKeyDown, new IntPtr(key), new IntPtr(lParam));
+        var message = systemKey
+            ? up ? NativeMethods.WmSysKeyUp : NativeMethods.WmSysKeyDown
+            : up ? NativeMethods.WmKeyUp : NativeMethods.WmKeyDown;
+        Post(hwnd, message, new IntPtr(key), new IntPtr(lParam));
     }
+
+    private static bool IsExtendedKey(ushort key) => key is 0x21 or 0x22 or 0x23 or 0x24 or 0x25 or 0x26 or 0x27 or 0x28 or 0x2D or 0x2E;
 
     internal static ushort ToVirtualKey(string key) => key switch
     {
@@ -516,5 +529,37 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         }
     }
 
-    public void Dispose() { Stop(); _pauseGate.Dispose(); }
+    private sealed class SyntheticFocusSession : IDisposable
+    {
+        private readonly IntPtr _hwnd;
+        private long _lastRefresh;
+
+        public SyntheticFocusSession(IntPtr hwnd)
+        {
+            _hwnd = hwnd;
+            Refresh(force: true);
+        }
+
+        public void Refresh(bool force = false)
+        {
+            var now = Environment.TickCount64;
+            if (!force && now - _lastRefresh < 750) return;
+            _lastRefresh = now;
+            NativeMethods.PostMessage(_hwnd, NativeMethods.WmActivateApp, new IntPtr(1), IntPtr.Zero);
+            NativeMethods.PostMessage(_hwnd, NativeMethods.WmNcActivate, new IntPtr(1), IntPtr.Zero);
+            NativeMethods.PostMessage(_hwnd, NativeMethods.WmActivate, new IntPtr(1), IntPtr.Zero);
+            NativeMethods.PostMessage(_hwnd, NativeMethods.WmSetFocus, IntPtr.Zero, IntPtr.Zero);
+        }
+
+        public void Dispose()
+        {
+            if (!NativeMethods.IsWindow(_hwnd)) return;
+            NativeMethods.PostMessage(_hwnd, NativeMethods.WmKillFocus, IntPtr.Zero, IntPtr.Zero);
+            NativeMethods.PostMessage(_hwnd, NativeMethods.WmActivate, IntPtr.Zero, IntPtr.Zero);
+            NativeMethods.PostMessage(_hwnd, NativeMethods.WmNcActivate, IntPtr.Zero, IntPtr.Zero);
+            NativeMethods.PostMessage(_hwnd, NativeMethods.WmActivateApp, IntPtr.Zero, IntPtr.Zero);
+        }
+    }
+
+    public void Dispose() => Stop();
 }

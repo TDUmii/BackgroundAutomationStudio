@@ -18,7 +18,7 @@ Windows users who need to capture, inspect, correct, save, and replay a small se
 
 ## Product Purpose
 
-Background Automation Studio V1 validates a stable recorder-and-workflow-editor foundation. Success means that a user can select one window, record or manually author a workflow, edit it visually or as a small DSL with undo/redo history, move the target when needed, and replay the workflow predictably without surrendering foreground focus.
+Background Automation Studio V2 validates a stable recorder, workflow editor, and covered-window playback foundation. Success means that a user can select one window, record or manually author a workflow, edit it visually or as a small DSL with undo/redo history, move or cover the target when needed, and replay the workflow predictably without surrendering foreground focus.
 
 ## Positioning
 
@@ -26,15 +26,15 @@ The workflow remains inspectable, reversible, and editable in both a direct-mani
 
 ## Operating Context
 
-The app runs visibly on Windows 10/11. Recording is always user initiated and observes real input in the selected target. Version 1.5 defaults to strict semantic and Win32 background playback for desktop targets, reserving potentially focus-taking UI Automation invocation for an explicitly selected compatibility mode. It adds explicit foreground and experimental background game engines without changing the desktop default. Projects are local JSON files.
+The app runs visibly on Windows 10/11. Recording is always user initiated and observes real input in the selected target. Version 2.0 defaults to strict semantic and Win32 background playback for desktop targets, reserving potentially focus-taking UI Automation invocation for an explicitly selected compatibility mode. Background Engine v2 adds target-local child resolution under occlusion, more faithful Win32 input messages, and synthetic focus messages for the experimental game-background engine without changing the desktop default. Projects are local JSON files.
 
 ## Capabilities and Constraints
 
-Version 1.5 includes window selection and resolution, explicit recording, click/keyboard/held-key/drag capture, workflow editing, shared visual/DSL undo and redo history, client-relative playback after moving the target, strict semantic Windows Calculator playback, activation-shielded Win32 fallback, an opt-in focus-unsafe UI Automation compatibility mode, foreground Game Macro input with focus-loss auto-pause and held-input release, experimental targeted game messages, count/infinite/duration/clock-time schedules, repeat counts up to 1,000,000, Clear all, English/Vietnamese UI, separate global Run/Emergency Stop and Pause/Resume hotkeys, diagnostic playback status, and project save/load. It intentionally excludes guaranteed raw-input background control, a second hardware cursor, fully hidden-window automation, multiple concurrent tasks, calendar recurrence, image/OCR/pixel logic, complex conditions, cloud, accounts, databases, plugins, process injection, drivers, packet manipulation, memory modification, and anti-cheat bypass.
+Version 2.0 includes window selection and resolution, explicit recording, click/keyboard/held-key/drag capture, workflow editing, shared visual/DSL undo and redo history, client-relative playback after moving the target, strict semantic Windows Calculator playback, activation-shielded Win32 fallback, target-local child-window resolution while covered, improved pointer and system-key message fidelity, synthetic focus messages for experimental game-background playback, an opt-in focus-unsafe UI Automation compatibility mode, foreground Game Macro input with focus-loss auto-pause and held-input release, count/infinite/duration/clock-time schedules, repeat counts up to 1,000,000, Clear all, English/Vietnamese UI, separate global Run/Emergency Stop and Pause/Resume hotkeys, diagnostic queued-versus-verified playback status, and project save/load. It intentionally excludes guaranteed raw-input background control, a second hardware cursor, fully hidden-window automation, multiple concurrent tasks, calendar recurrence, image/OCR/pixel logic, complex conditions, cloud, accounts, databases, plugins, process injection, drivers, packet manipulation, memory modification, and anti-cheat bypass.
 
 ## Brand Commitments
 
-The product name is Background Automation Studio. The version label is “Version 1.5 - Game Macro & Focus Guard”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
+The product name is Background Automation Studio. The version label is “Version 2.0 - Background Engine v2”. The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
 
 ## Evidence on Hand
 

@@ -6,9 +6,9 @@ Background Automation Studio is a Windows 10/11 desktop application for recordin
 
 Download the ready-to-run, self-contained Windows x64 application:
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v1.5.1/BackgroundAutomationStudio.exe)**
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.0.0/BackgroundAutomationStudio.exe)**
 
-No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v1.5.1 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v1.5.1).
+No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v2.0.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.0.0).
 
 ## Features
 
@@ -21,7 +21,7 @@ No separate .NET installation is required. Release details and the SHA-256 check
 - Replay Windows Calculator controls through focus-safe semantic keyboard messages without activating Calculator or resetting another app's IME composition.
 - Choose Strict background, Modern controls (may take focus), or Classic Win32 messages in Settings.
 - Choose Game Macro - foreground for games that require real Windows input. Switching to another app releases held input and auto-pauses without forcing the game back to the front.
-- Try Game background - experimental for targeted Win32 key and pointer messages. The studio never activates the game and states plainly that raw-input games may ignore them.
+- Try Background Engine v2 - experimental for target-local control resolution, improved Win32 key/pointer messages, and synthetic focus messages without foreground activation. Raw-input games may still ignore them.
 - Record and edit held keys and pointer drags in either visual or script form (`HOLD` and `DRAG`). Game recording recognizes key holds of at least 150 ms and pointer drags beyond the Windows drag threshold.
 - Configure separate global Run/Emergency Stop and Pause/Resume shortcuts, defaulting to `Ctrl+Shift+F9` and `Ctrl+Shift+F10`.
 - Run up to 1,000,000 repeats, indefinitely, for a duration, or until a clock time.
@@ -37,7 +37,7 @@ No separate .NET installation is required. Release details and the SHA-256 check
 
 Strict background mode, the default, searches the selected target's UI Automation tree only to identify the smallest actionable element at the recorded client coordinate. It never calls a provider's focus-taking `Invoke` pattern. Supported semantic controls, including standard Windows Calculator buttons, are translated to targeted background keyboard messages; other controls fall back to ordinary Win32 background messages.
 
-Modern-controls mode is an explicit compatibility option for controls without a strict-background adapter. It may call UI Automation `Invoke`, `Toggle`, `SelectionItem`, or `ExpandCollapse`; provider behavior is outside the studio's control and may take foreground focus or reset IME composition. Classic mode sends pointer actions as Win32 messages. Keyboard and right-click actions use classic background messages in every mode.
+Modern-controls mode is an explicit compatibility option for controls without a strict-background adapter. It may call UI Automation `Invoke`, `Toggle`, `SelectionItem`, or `ExpandCollapse`; provider behavior is outside the studio's control and may take foreground focus or reset IME composition. Classic mode sends pointer actions as Win32 messages. Background Engine v2 resolves the recipient through the selected target's own child-window tree, so a covering window cannot redirect a recorded click to itself. Keyboard and right-click actions use classic background messages in every mode.
 
 Strict background and Classic modes do not activate the target or move the physical cursor. During playback, an activation shield temporarily prevents ordinary activation and a continuous guard protects against unexpected target-family foreground changes. The original window style is always restored when playback stops, is cancelled, or fails. Minimized targets are shown without activation; a normal target may remain covered while the user selects, types, and uses an IME in another application. A fully hidden window must be shown first.
 
@@ -49,7 +49,7 @@ Games, elevated applications when the studio is not elevated, custom browser or 
 
 **Game Macro - foreground** converts clicks, text, key presses, held keys, and drags into ordinary `SendInput` events. It does not activate or raise the selected game. Before every action and throughout waits or held input, it verifies that the selected top-level window is still foreground. If the user changes apps, held keys/buttons are released and playback waits. Returning to the selected game resumes the remaining schedule automatically. Because Windows exposes no atomic "send only if this HWND is still foreground" operation, the single action already crossing the OS input boundary during an exact focus transition can be cancelled; later iterations resume and input is not redirected intentionally.
 
-**Game background - experimental** uses targeted window messages and preserves the user's foreground window and pointer. It also verifies that a focused child belongs to the selected top-level target before posting keys, preventing a sibling window in the same process/thread from receiving the macro. Acceptance cannot be detected from outside the target: Project Zomboid and other raw-input games may ignore every message while unfocused.
+**Background Engine v2 - experimental** uses targeted window messages and preserves the user's foreground window and pointer. It resolves pointer recipients entirely inside the selected target even when another window covers it, sends mouse movement before button messages, preserves extended/system-key flags, and maintains a synthetic focus state without foreground activation. It also verifies that a focused child belongs to the selected top-level target before posting keys. Acceptance cannot be detected from outside the target: Project Zomboid and other raw-input games may ignore every message while unfocused.
 
 Game Macro does not inject code, modify memory, alter packets, accelerate server-side actions, bypass anti-cheat, or create a separate hardware cursor. Use automation only where the game and server rules permit it. In multiplayer, the server remains authoritative and an administrator may treat macros as prohibited automation even when every action uses normal timing.
 

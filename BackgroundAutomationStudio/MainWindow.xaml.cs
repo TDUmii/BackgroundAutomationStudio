@@ -66,6 +66,27 @@ public partial class MainWindow : Window
     private void WorkflowList_MouseMove(object sender, MouseEventArgs e) { var point = e.GetPosition(null); if (e.LeftButton != MouseButtonState.Pressed || Math.Abs(point.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(point.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return; var item = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource); if (item?.DataContext is AutomationAction action) DragDrop.DoDragDrop(item, action, DragDropEffects.Move); }
     private void WorkflowList_Drop(object sender, DragEventArgs e) { if (DataContext is not MainViewModel vm || e.Data.GetData(typeof(AutomationAction)) is not AutomationAction source) return; var targetItem = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource); if (targetItem?.DataContext is AutomationAction target) vm.MoveAction(vm.Actions.IndexOf(source), vm.Actions.IndexOf(target)); }
     private void WorkflowList_MouseDoubleClick(object sender, MouseButtonEventArgs e) { if (DataContext is MainViewModel vm && vm.EditCommand.CanExecute(null)) vm.EditCommand.Execute(null); }
-    private async void Window_Closing(object? sender, CancelEventArgs e) { if (_allowClose || DataContext is not MainViewModel vm) return; e.Cancel = true; if (await vm.TryCloseAsync()) { _allowClose = true; _runHotkey.Dispose(); _pauseHotkey.Dispose(); Close(); } }
+    private async void Window_Closing(object? sender, CancelEventArgs e)
+    {
+        if (_allowClose || DataContext is not MainViewModel vm) return;
+        if (!vm.IsModified)
+        {
+            _allowClose = true;
+            DisposeHotkeys();
+            return;
+        }
+
+        e.Cancel = true;
+        if (!await vm.TryCloseAsync()) return;
+        _allowClose = true;
+        DisposeHotkeys();
+        Close();
+    }
+
+    private void DisposeHotkeys()
+    {
+        _runHotkey.Dispose();
+        _pauseHotkey.Dispose();
+    }
     private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject { while (current is not null) { if (current is T found) return found; current = VisualTreeHelper.GetParent(current); } return null; }
 }

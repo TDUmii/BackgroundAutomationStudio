@@ -78,7 +78,7 @@ components:
 
 **Creative North Star: "The Graphite Control Desk"**
 
-Background Automation Studio is a dense but calm Windows operator workspace. Graphite surfaces keep target context, transport controls, project state, and the workflow editor visible together; darker accessible blue is reserved for primary action, keyboard focus, and live execution; red is reserved for recording, stop-record emphasis, and errors. Version 1.5 extends the same operator language to game compatibility without adopting gaming neon, decorative HUD chrome, or false claims of undetectable background input.
+Background Automation Studio is a dense but calm Windows operator workspace. Graphite surfaces keep target context, transport controls, project state, and the workflow editor visible together; darker accessible blue is reserved for primary action, keyboard focus, and live execution; red is reserved for recording, stop-record emphasis, and errors. Version 2.0 extends the same operator language to stronger covered-window playback without adopting gaming neon, decorative HUD chrome, or false claims of guaranteed raw-input background control.
 
 The hierarchy follows the work rather than decoration. Selection and current execution are visibly different states, important fields have visible names, and the empty editor provides authored next-step guidance instead of a blank canvas.
 
@@ -184,11 +184,11 @@ Controls and nested information wells use 8px corners, workflow rows use 10px, a
 
 ### Navigation
 
-The native menu bar exposes File and Edit commands and visible New/Open/Save gestures. Text tabs use muted inactive labels, graphite hover, and a selected raised surface with near-white text and a blue underline. The bottom status bar stays quiet and persistent.
+The top command bar shares the Graphite Canvas color with the app body so it reads as one continuous shell. File, Edit, hotkey, and Settings controls stay transparent; hover, keyboard focus, and an open menu are shown with a short blue underline instead of a filled rectangle. Dropdown and context-menu groups use spacing rather than separator rules. Text tabs use muted inactive labels, graphite hover, and a selected raised surface with near-white text and a blue underline. The bottom status bar stays quiet and persistent.
 
 ### Game Engine Settings
 
-Settings keeps one continuous playback-engine list. Strict background remains first and selected by default. The two game choices follow immediately: **Game macro - foreground** names the reliable game path and explains physical-pointer use plus focus-loss auto-pause; **Game background - experimental** names its uncertainty directly and calls out Project Zomboid/raw-input rejection. This ordering and the window's initial scroll position deliberately keep the experimental choice visible in the first Settings viewport rather than hiding it below a fold. Modern UI Automation and Classic Win32 remain available below. Selected modes use the existing Execution Blue surface and border; warnings remain text-led rather than introducing a new alert color.
+Settings keeps one continuous playback-engine list. Strict background remains first and selected by default. The two game choices follow immediately: **Game macro - foreground** names the reliable game path and explains physical-pointer use plus focus-loss auto-pause; **Background Engine v2 - experimental** names its covered-window improvements and uncertainty directly, including raw-input rejection. This ordering and the window's initial scroll position deliberately keep the experimental choice visible in the first Settings viewport rather than hiding it below a fold. Modern UI Automation and Classic Win32 remain available below. Selected modes use the existing Execution Blue surface and border; warnings remain text-led rather than introducing a new alert color.
 
 Run/Emergency Stop and Pause/Resume form one compact two-column group with a 12px gutter. The equal-width, separately named fields use 15px Consolas, a 42px minimum height, and inline per-field error text. Their labels describe behavior rather than implementation, and the settings copy states that emergency stop releases held synthetic input.
 
@@ -206,7 +206,7 @@ The recording banner uses a dark red surface and muted red border. An eight-pixe
 
 ### Playback Compatibility
 
-Settings presents five full-width, text-led choices in one continuous list: Strict background, Game macro - foreground, Game background - experimental, Modern controls that may take focus, and Classic Win32 messages. Each choice includes its operational consequence, uses the established graphite/Execution Blue selection treatment, and remains keyboard focusable. Strict background is the default and never calls focus-taking UI Automation patterns. The Modern option is explicitly labeled as potentially interrupting typing and IME composition. Compatibility copy distinguishes a covered window from minimized and fully hidden states so the interface does not promise universal hidden-window automation.
+Settings presents five full-width, text-led choices in one continuous list: Strict background, Game macro - foreground, Background Engine v2 - experimental, Modern controls that may take focus, and Classic Win32 messages. Each choice includes its operational consequence, uses the established graphite/Execution Blue selection treatment, and remains keyboard focusable. Strict background is the default and never calls focus-taking UI Automation patterns. The Modern option is explicitly labeled as potentially interrupting typing and IME composition. Compatibility copy distinguishes a covered window from minimized and fully hidden states so the interface does not promise universal hidden-window automation.
 
 During a run, the activation shield prevents ordinary target activation and the status bar distinguishes focus-safe semantic commands, Win32 fallback, and explicitly requested focus-unsafe UI Automation. Playback never restores the target's recorded desktop position. A visible target can be dragged while running because every action resolves its client-relative coordinate against the current window position.
 

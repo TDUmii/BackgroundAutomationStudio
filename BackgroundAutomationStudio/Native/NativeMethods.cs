@@ -12,6 +12,11 @@ public static class NativeMethods
     public const int WmChar = 0x0102;
     public const int WmSysKeyDown = 0x0104;
     public const int WmSysKeyUp = 0x0105;
+    public const int WmSetFocus = 0x0007;
+    public const int WmKillFocus = 0x0008;
+    public const int WmActivate = 0x0006;
+    public const int WmActivateApp = 0x001C;
+    public const int WmNcActivate = 0x0086;
     public const int WmLButtonDown = 0x0201;
     public const int WmLButtonUp = 0x0202;
     public const int WmLButtonDblClk = 0x0203;
@@ -21,6 +26,9 @@ public static class NativeMethods
     public const uint MkLButton = 0x0001;
     public const uint MkRButton = 0x0002;
     public const uint GaRoot = 2;
+    public const uint CwpSkipInvisible = 0x0001;
+    public const uint CwpSkipDisabled = 0x0002;
+    public const uint CwpSkipTransparent = 0x0004;
     public const uint MapvkVkToVsc = 0;
     public const uint SwpNoZOrder = 0x0004;
     public const uint SwpNoActivate = 0x0010;
@@ -66,6 +74,8 @@ public static class NativeMethods
     public static extern IntPtr GetModuleHandle(string? moduleName);
     [DllImport("user32.dll")]
     public static extern IntPtr WindowFromPoint(POINT point);
+    [DllImport("user32.dll")]
+    public static extern IntPtr ChildWindowFromPointEx(IntPtr parent, POINT point, uint flags);
     [DllImport("user32.dll")]
     public static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
     [DllImport("user32.dll")]
