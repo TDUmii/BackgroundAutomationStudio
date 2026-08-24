@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -18,12 +19,16 @@ public partial class MainWindow : Window
     private readonly GlobalHotkeyService _runHotkey = new(0xB451);
     private readonly GlobalHotkeyService _pauseHotkey = new(0xB452);
     private Point _dragStart; private bool _allowClose;
+    private IInputElement? _functionPanelOpener;
 
     public MainWindow(MainViewModel viewModel, SettingsService settings)
     {
         _settings = settings;
         InitializeComponent();
         DataContext = viewModel;
+        FunctionPanel.IsVisibleChanged += FunctionPanel_IsVisibleChanged;
+        AddColorActionsToMenu(viewModel);
+        BuildBlockPalette(viewModel);
         Topmost = settings.Current.AlwaysOnTop;
         PinButton.Tag = Topmost;
         PinButton.ToolTip = LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow");
@@ -32,6 +37,71 @@ public partial class MainWindow : Window
         UpdatePlaybackModeIndicator();
         _runHotkey.Pressed += (_, _) => Dispatcher.Invoke(viewModel.ToggleRunFromHotkey);
         _pauseHotkey.Pressed += (_, _) => Dispatcher.Invoke(viewModel.TogglePauseFromHotkey);
+    }
+
+    private void BuildBlockPalette(MainViewModel viewModel)
+    {
+        if (WorkflowList.Parent is not Grid host) return;
+        WorkflowList.Margin = new Thickness(170, 0, 0, 0);
+        var palette = new Border
+        {
+            Width = 156, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Stretch,
+            Background = new SolidColorBrush(Color.FromRgb(20, 24, 30)), BorderBrush = new SolidColorBrush(Color.FromRgb(54, 62, 74)),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(10)
+        };
+        Grid.SetRow(palette, 1);
+        Panel.SetZIndex(palette, 2);
+        var stack = new StackPanel();
+        stack.Children.Add(new TextBlock { Text = LocalizationService.Language == "vi" ? "KHỐI THAO TÁC" : "ACTION BLOCKS", Foreground = new SolidColorBrush(Color.FromRgb(135, 146, 163)), FontSize = 10, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2, 0, 0, 8) });
+        string? currentCategory = null;
+        foreach (var block in new[]
+        {
+            ("Click", "Pointer", "#356FCC"), ("Drag", "Pointer", "#356FCC"),
+            ("WaitForImage", "Vision", "#7654B3"), ("ClickImage", "Vision", "#7654B3"),
+            ("WaitForColor", "Vision", "#7654B3"), ("ClickColor", "Vision", "#7654B3"),
+            ("TypeText", "Input", "#27835F"), ("KeyPress", "Input", "#27835F"),
+            ("Wait", "Flow", "#A16A24"), ("CallFunction", "Reuse", "#A14572")
+        })
+        {
+            if (!string.Equals(currentCategory, block.Item2, StringComparison.Ordinal))
+            {
+                currentCategory = block.Item2;
+                var categoryName = (block.Item2, LocalizationService.Language) switch
+                {
+                    ("Pointer", "vi") => "CHUỘT", ("Vision", "vi") => "NHẬN DIỆN", ("Input", "vi") => "BÀN PHÍM", ("Flow", "vi") => "LUỒNG", ("Reuse", "vi") => "DÙNG LẠI", _ => block.Item2.ToUpperInvariant()
+                };
+                stack.Children.Add(new TextBlock { Text = categoryName, Foreground = new SolidColorBrush(Color.FromRgb(175, 185, 201)), FontSize = 9, FontWeight = FontWeights.Bold, Margin = new Thickness(2, currentCategory == "Pointer" ? 0 : 7, 0, 4) });
+            }
+            var button = new Button { Tag = block.Item1, Content = LocalizationService.Get(block.Item1), Command = viewModel.AddActionCommand, CommandParameter = block.Item1, Background = (Brush)new BrushConverter().ConvertFromString(block.Item3)!, Foreground = Brushes.White, BorderThickness = new Thickness(0), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 7, 8, 7), Margin = new Thickness(0, 0, 0, 6), Cursor = Cursors.Hand, ToolTip = LocalizationService.Language == "vi" ? "Kéo vào quy trình hoặc nhấp để thêm" : "Drag into the workflow or click to add" };
+            button.PreviewMouseLeftButtonDown += PaletteBlock_PreviewMouseLeftButtonDown;
+            button.MouseMove += PaletteBlock_MouseMove;
+            stack.Children.Add(button);
+        }
+        var scroller = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        scroller.Resources[typeof(ScrollBar)] = FindResource("SlimScrollBar");
+        palette.Child = scroller;
+        host.Children.Add(palette);
+    }
+
+    private void PaletteBlock_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _dragStart = e.GetPosition(null);
+    private void PaletteBlock_MouseMove(object sender, MouseEventArgs e)
+    {
+        var point = e.GetPosition(null);
+        if (sender is not Button { Tag: string type } || e.LeftButton != MouseButtonState.Pressed || Math.Abs(point.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(point.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+        DragDrop.DoDragDrop((Button)sender, $"ActionType:{type}", DragDropEffects.Copy);
+    }
+
+    private void AddColorActionsToMenu(MainViewModel viewModel)
+    {
+        if (AddActionButton.ContextMenu is not { } menu) return;
+        var typeTextIndex = menu.Items.OfType<MenuItem>().ToList().FindIndex(item => Equals(item.CommandParameter, "TypeText"));
+        var insertAt = typeTextIndex < 0 ? menu.Items.Count : typeTextIndex;
+        foreach (var (resource, parameter) in new[] { ("WaitForColor", "WaitForColor"), ("ClickColor", "ClickColor") })
+        {
+            var item = new MenuItem { Command = viewModel.AddActionCommand, CommandParameter = parameter };
+            item.SetResourceReference(HeaderedItemsControl.HeaderProperty, resource);
+            menu.Items.Insert(insertAt++, item);
+        }
     }
 
     private void MenuButton_Click(object sender, RoutedEventArgs e)
@@ -165,11 +235,26 @@ public partial class MainWindow : Window
     }
     private void WorkflowList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _dragStart = e.GetPosition(null);
     private void WorkflowList_MouseMove(object sender, MouseEventArgs e) { var point = e.GetPosition(null); if (e.LeftButton != MouseButtonState.Pressed || Math.Abs(point.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(point.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return; var item = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource); if (item?.DataContext is AutomationAction action) DragDrop.DoDragDrop(item, action, DragDropEffects.Move); }
-    private void WorkflowList_Drop(object sender, DragEventArgs e) { if (DataContext is not MainViewModel vm || e.Data.GetData(typeof(AutomationAction)) is not AutomationAction source) return; var targetItem = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource); if (targetItem?.DataContext is AutomationAction target) vm.MoveAction(vm.Actions.IndexOf(source), vm.Actions.IndexOf(target)); }
+    private void WorkflowList_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        var targetItem = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource);
+        var targetIndex = targetItem?.DataContext is AutomationAction target ? vm.Actions.IndexOf(target) : vm.Actions.Count;
+        if (e.Data.GetData(typeof(AutomationAction)) is AutomationAction source) vm.MoveAction(vm.Actions.IndexOf(source), Math.Clamp(targetIndex, 0, Math.Max(0, vm.Actions.Count - 1)));
+        else if (e.Data.GetData(DataFormats.StringFormat) is string data && data.StartsWith("ActionType:", StringComparison.Ordinal)) vm.AddActionAt(data[11..], targetIndex);
+    }
     private void WorkflowList_MouseDoubleClick(object sender, MouseButtonEventArgs e) { if (DataContext is MainViewModel vm && vm.EditCommand.CanExecute(null)) vm.EditCommand.Execute(null); }
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (!WorkflowList.IsKeyboardFocusWithin || DataContext is not MainViewModel vm) return;
+        if (DataContext is not MainViewModel vm) return;
+        if (e.Key == Key.Escape && vm.IsFunctionPanelOpen)
+        {
+            vm.CloseFunctionPanelCommand.Execute(null);
+            if (!vm.IsFunctionPanelOpen && _functionPanelOpener is not null) Keyboard.Focus(_functionPanelOpener);
+            e.Handled = true;
+            return;
+        }
+        if (!WorkflowList.IsKeyboardFocusWithin) return;
         var modifiers = Keyboard.Modifiers;
         ICommand? command = e.Key switch
         {
@@ -186,6 +271,15 @@ public partial class MainWindow : Window
         };
         if (command?.CanExecute(null) != true) return;
         command.Execute(null); e.Handled = true;
+    }
+    private void FunctionPanel_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true)
+        {
+            _functionPanelOpener = Keyboard.FocusedElement;
+            Dispatcher.BeginInvoke(() => FunctionList.Focus(), System.Windows.Threading.DispatcherPriority.Input);
+        }
+        else if (_functionPanelOpener is not null) Dispatcher.BeginInvoke(() => Keyboard.Focus(_functionPanelOpener), System.Windows.Threading.DispatcherPriority.Input);
     }
     private async void Window_Closing(object? sender, CancelEventArgs e)
     {

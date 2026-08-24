@@ -30,6 +30,8 @@ The app runs visibly on Windows 10/11. Recording is always user initiated and ob
 
 ## Capabilities and Constraints
 
+Version 2.5.0 adds HEX and RGB color matching, a spectrum picker, tolerance and minimum-area controls, wait-for-color and click-color actions, a categorized drag-and-drop block palette, and an inline reusable-function editor. Image and color capture do not guarantee usable frames from hardware-rendered or protected targets.
+
 Version 2.4.0 adds embedded PNG templates, multi-scale grayscale matching, wait-for-appearance, wait-for-disappearance, matched-image clicking, similarity and polling controls, client-relative search regions, and foreground-screen or covered-window capture paths. Visual matching does not guarantee usable frames from hardware-rendered or protected targets.
 
 Version 2.3.5 standardizes user-facing separators to the single ASCII hyphen in the app, documentation, and release copy.
@@ -40,7 +42,7 @@ Version 2.3.3 includes window selection and resolution, explicit click/scroll/ke
 
 ## Brand Commitments
 
-The product name is Background Automation Studio. The version label is "Version 2.4.0 - Visual Matching". The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
+The product name is Background Automation Studio. The version label is "Version 2.5.0 - Visual Blocks". The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
 
 ## Evidence on Hand
 

@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using BackgroundAutomationStudio.Native;
+using BackgroundAutomationStudio.Models;
 using OpenCvSharp;
 
 namespace BackgroundAutomationStudio.Services;
@@ -14,6 +15,7 @@ public sealed record VisualMatchResult(bool Found, int CenterX, int CenterY, dou
 public interface IVisualMatchingService
 {
     VisualMatchResult Find(IntPtr hwnd, byte[] templatePng, int regionX, int regionY, int regionWidth, int regionHeight, double threshold);
+    VisualMatchResult FindColor(IntPtr hwnd, string colorHex, int tolerance, int minimumPixels, int regionX, int regionY, int regionWidth, int regionHeight);
 }
 
 public sealed class VisualMatchingService : IVisualMatchingService
@@ -25,6 +27,37 @@ public sealed class VisualMatchingService : IVisualMatchingService
         if (templatePng.Length == 0) throw new InvalidOperationException("Choose a PNG template before running image scan.");
         var framePng = WindowFrameCapture.CaptureClientPng(hwnd);
         return FindInPng(framePng, templatePng, regionX, regionY, regionWidth, regionHeight, threshold);
+    }
+
+    public VisualMatchResult FindColor(IntPtr hwnd, string colorHex, int tolerance, int minimumPixels, int regionX, int regionY, int regionWidth, int regionHeight)
+    {
+        var framePng = WindowFrameCapture.CaptureClientPng(hwnd);
+        return FindColorInPng(framePng, colorHex, tolerance, minimumPixels, regionX, regionY, regionWidth, regionHeight);
+    }
+
+    internal static VisualMatchResult FindColorInPng(byte[] framePng, string colorHex, int tolerance, int minimumPixels, int regionX, int regionY, int regionWidth, int regionHeight)
+    {
+        if (!ColorScanAction.TryParseColor(colorHex, out var red, out var green, out var blue)) throw new InvalidOperationException("Color must use #RRGGBB format.");
+        using var frame = Cv2.ImDecode(framePng, ImreadModes.Color);
+        if (frame.Empty()) throw new InvalidOperationException("The target frame could not be decoded.");
+        var search = NormalizeRegion(frame.Width, frame.Height, regionX, regionY, regionWidth, regionHeight);
+        using var searchColor = new Mat(frame, search);
+        using var mask = new Mat();
+        var safeTolerance = Math.Clamp(tolerance, 0, 255);
+        var lower = new Scalar(Math.Max(0, blue - safeTolerance), Math.Max(0, green - safeTolerance), Math.Max(0, red - safeTolerance));
+        var upper = new Scalar(Math.Min(255, blue + safeTolerance), Math.Min(255, green + safeTolerance), Math.Min(255, red + safeTolerance));
+        Cv2.InRange(searchColor, lower, upper, mask);
+        Cv2.FindContours(mask, out var contours, out _, RetrievalModes.External, ContourApproximationModes.ApproxSimple);
+        Rect? bestBounds = null;
+        var bestArea = 0d;
+        foreach (var contour in contours)
+        {
+            var area = Cv2.ContourArea(contour);
+            if (area < Math.Max(1, minimumPixels) || area <= bestArea) continue;
+            bestArea = area; bestBounds = Cv2.BoundingRect(contour);
+        }
+        if (bestBounds is not { } bounds) return VisualMatchResult.NotFound;
+        return new VisualMatchResult(true, search.X + bounds.X + bounds.Width / 2, search.Y + bounds.Y + bounds.Height / 2, 1, bounds.Width, bounds.Height);
     }
 
     internal static VisualMatchResult FindInPng(byte[] framePng, byte[] templatePng, int regionX, int regionY, int regionWidth, int regionHeight, double threshold)

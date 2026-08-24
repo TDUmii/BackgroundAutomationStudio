@@ -234,6 +234,10 @@ Mouse scroll is a first-class client-relative action beside click and drag. Its 
 
 Wait for image and Click matched image use the same focused action editor as the rest of the workflow. The PNG preview appears before tuning controls, followed by similarity, timeout, scan interval, and a compact X/Y/W/H search region. Zero width and height clearly mean the full target client area. Helper copy recommends smaller regions for speed and fewer false matches. The editor scrolls within its graphite container so the action note and Save action remain reachable without enlarging the dialog beyond the desktop.
 
+Color actions share the visual matching capture path. A compact spectrum strip, live swatch, HEX field, synchronized RGB channels, tolerance, minimum matching area, timing, and client-relative region controls keep selection precise without a separate picker window.
+
+The visual editor includes a restrained Scratch-inspired palette rather than copying Scratch puzzle geometry. Pointer, vision, input, flow, and reuse blocks use stable category colors and can be clicked or dragged to a workflow position. Reusable functions open in an inline right-side workspace with the function list, name, DSL steps, validation, save, and delete controls, so editing never creates another window.
+
 ### Run Schedule
 
 The capture-and-playback panel uses one dark native-feeling selector for four mutually exclusive schedules: a fixed repeat count, infinite until stopped, a duration in minutes, or a clock stop time. Only the field required by the selected schedule remains visible. The dropdown, selected state, keyboard focus, and popup items use the same graphite surfaces and blue focus treatment as the rest of the studio.

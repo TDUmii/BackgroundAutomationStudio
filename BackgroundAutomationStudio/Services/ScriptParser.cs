@@ -44,6 +44,8 @@ public sealed partial class ScriptParser
                 "WAIT" => ParseWait(args, i + 1, result),
                 "WAIT_IMAGE" => ParseWaitImage(raw, i + 1, result),
                 "CLICK_IMAGE" => ParseClickImage(raw, i + 1, result),
+                "WAIT_COLOR" => ParseWaitColor(args, i + 1, result),
+                "CLICK_COLOR" => ParseClickColor(args, i + 1, result),
                 "KEY" => ParseKey(args, i + 1, result),
                 "HOLD" => ParseHold(args, i + 1, result),
                 "DRAG" => ParseDrag(args, i + 1, result),
@@ -80,6 +82,8 @@ public sealed partial class ScriptParser
                 WaitAction a => $"WAIT {a.Milliseconds}",
                 WaitForImageAction a => $"WAIT_IMAGE {a.SimilarityPercent} {a.TimeoutMilliseconds} {a.PollIntervalMilliseconds} {(a.WaitForDisappear ? "DISAPPEAR" : "APPEAR")} {a.RegionX} {a.RegionY} {a.RegionWidth} {a.RegionHeight} \"{Escape(a.TemplateName)}\" {Convert.ToBase64String(a.TemplatePng)}",
                 ClickImageAction a => $"CLICK_IMAGE {a.SimilarityPercent} {a.TimeoutMilliseconds} {a.PollIntervalMilliseconds} {(a.RightClick ? "RIGHT" : "LEFT")} {a.OffsetX} {a.OffsetY} {a.RegionX} {a.RegionY} {a.RegionWidth} {a.RegionHeight} \"{Escape(a.TemplateName)}\" {Convert.ToBase64String(a.TemplatePng)}",
+                WaitForColorAction a => $"WAIT_COLOR {a.ColorHex} {a.Tolerance} {a.MinimumPixels} {a.TimeoutMilliseconds} {a.PollIntervalMilliseconds} {(a.WaitForDisappear ? "DISAPPEAR" : "APPEAR")} {a.RegionX} {a.RegionY} {a.RegionWidth} {a.RegionHeight}",
+                ClickColorAction a => $"CLICK_COLOR {a.ColorHex} {a.Tolerance} {a.MinimumPixels} {a.TimeoutMilliseconds} {a.PollIntervalMilliseconds} {(a.RightClick ? "RIGHT" : "LEFT")} {a.OffsetX} {a.OffsetY} {a.RegionX} {a.RegionY} {a.RegionWidth} {a.RegionHeight}",
                 _ => throw new InvalidOperationException($"Unsupported action {action.GetType().Name}.")
             };
             lines.Add(action.Enabled ? line : $"# DISABLED {line}");
@@ -157,6 +161,40 @@ public sealed partial class ScriptParser
         if (values[0] is < 1 or > 100) { result.Errors.Add(new(line, "Similarity must be from 1 to 100")); return false; }
         if (values[1] < 0 || values[2] is < 50 or > 10000 || values.Skip(3).Any(value => value < 0)) { result.Errors.Add(new(line, "Image scan timeout and region values are invalid")); return false; }
         if (values[5] == 0 ^ values[6] == 0) { result.Errors.Add(new(line, "Image scan region width and height must both be zero or both be positive")); return false; }
+        return true;
+    }
+
+    private static AutomationAction? ParseWaitColor(string args, int line, ScriptParseResult result)
+    {
+        var parts = args.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 10) { result.Errors.Add(new(line, "Expected HEX color, tolerance, minimum pixels, timeout, poll interval, APPEAR or DISAPPEAR, and region X/Y/width/height")); return null; }
+        if (!TryParseColorCommon(parts, line, result, out var values)) return null;
+        var mode = parts[5].ToUpperInvariant();
+        if (mode is not ("APPEAR" or "DISAPPEAR")) { result.Errors.Add(new(line, "Color wait mode must be APPEAR or DISAPPEAR")); return null; }
+        return new WaitForColorAction { ColorHex = parts[0], Tolerance = values[0], MinimumPixels = values[1], TimeoutMilliseconds = values[2], PollIntervalMilliseconds = values[3], WaitForDisappear = mode == "DISAPPEAR", RegionX = values[4], RegionY = values[5], RegionWidth = values[6], RegionHeight = values[7] };
+    }
+
+    private static AutomationAction? ParseClickColor(string args, int line, ScriptParseResult result)
+    {
+        var parts = args.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 12) { result.Errors.Add(new(line, "Expected HEX color, tolerance, minimum pixels, timeout, poll interval, LEFT or RIGHT, offsets, and region X/Y/width/height")); return null; }
+        var commonParts = new[] { parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[8], parts[9], parts[10], parts[11] };
+        if (!TryParseColorCommon(commonParts, line, result, out var values)) return null;
+        var button = parts[5].ToUpperInvariant();
+        if (button is not ("LEFT" or "RIGHT")) { result.Errors.Add(new(line, "Color click button must be LEFT or RIGHT")); return null; }
+        if (!int.TryParse(parts[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out var offsetX) || !int.TryParse(parts[7], NumberStyles.Integer, CultureInfo.InvariantCulture, out var offsetY)) { result.Errors.Add(new(line, "Color click offsets must be whole numbers")); return null; }
+        return new ClickColorAction { ColorHex = parts[0], Tolerance = values[0], MinimumPixels = values[1], TimeoutMilliseconds = values[2], PollIntervalMilliseconds = values[3], RightClick = button == "RIGHT", OffsetX = offsetX, OffsetY = offsetY, RegionX = values[4], RegionY = values[5], RegionWidth = values[6], RegionHeight = values[7] };
+    }
+
+    private static bool TryParseColorCommon(string[] parts, int line, ScriptParseResult result, out int[] values)
+    {
+        values = new int[8];
+        if (!ColorScanAction.TryParseColor(parts[0], out _, out _, out _)) { result.Errors.Add(new(line, "Color must use #RRGGBB format")); return false; }
+        var indexes = new[] { 1, 2, 3, 4, 6, 7, 8, 9 };
+        for (var index = 0; index < indexes.Length; index++)
+            if (!int.TryParse(parts[indexes[index]], NumberStyles.Integer, CultureInfo.InvariantCulture, out values[index])) { result.Errors.Add(new(line, "Color scan values must be whole numbers")); return false; }
+        if (values[0] is < 0 or > 255 || values[1] <= 0 || values[2] < 0 || values[3] is < 50 or > 10000 || values.Skip(4).Any(value => value < 0)) { result.Errors.Add(new(line, "Color scan tolerance, timing, minimum pixels, or region is invalid")); return false; }
+        if (values[6] == 0 ^ values[7] == 0) { result.Errors.Add(new(line, "Color scan region width and height must both be zero or both be positive")); return false; }
         return true;
     }
 

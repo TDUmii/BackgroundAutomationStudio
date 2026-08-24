@@ -41,6 +41,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string? _projectPath;
     private RecordChoice _recordChoice;
     private AutomationAction? _actionClipboard;
+    private bool _isFunctionPanelOpen;
+    private AutomationFunction? _selectedFunction;
+    private string _functionNameDraft = string.Empty;
+    private string _functionScriptDraft = string.Empty;
+    private string _functionErrors = string.Empty;
+    private bool _functionDraftDirty;
+    private bool _loadingFunctionDraft;
 
     public MainViewModel(IWindowManager windowManager, WindowPickerService windowPicker, RecorderService recorder, IAutomationRunner runner, ScriptParser scriptParser, ProjectService projectService, IDialogService dialogs, CoordinateOverlayService coordinateOverlay)
     {
@@ -77,7 +84,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         InsertAboveCommand = new RelayCommand(p => AddAction((string?)p ?? "Wait", true), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         InsertBelowCommand = new RelayCommand(p => AddAction((string?)p ?? "Wait", false), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         AddActionCommand = new RelayCommand(p => AddAction((string?)p ?? "Wait", null), _ => !IsRecording && !IsRunning);
-        ManageFunctionsCommand = new RelayCommand(_ => ManageFunctions(), _ => !IsRecording && !IsRunning);
+        ManageFunctionsCommand = new RelayCommand(_ => OpenFunctionPanel(), _ => !IsRecording && !IsRunning);
+        NewFunctionCommand = new RelayCommand(_ => NewFunction(), _ => !IsRecording && !IsRunning);
+        SaveFunctionCommand = new RelayCommand(_ => SaveFunction(), _ => SelectedFunction is not null && !IsRecording && !IsRunning);
+        DeleteFunctionCommand = new RelayCommand(_ => DeleteFunction(), _ => SelectedFunction is not null && !IsRecording && !IsRunning);
+        CloseFunctionPanelCommand = new RelayCommand(_ => CloseFunctionPanel());
         SyncScriptFromVisual();
         _workflowHistory.Reset(Actions);
     }
@@ -85,6 +96,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AutomationProject Project { get => _project; private set { if (SetProperty(ref _project, value)) { OnPropertyChanged(nameof(Actions)); OnPropertyChanged(nameof(ProjectTitle)); OnPropertyChanged(nameof(TargetSummary)); } } }
     public ObservableCollection<AutomationAction> Actions => Project.Actions;
     public ObservableCollection<AutomationFunction> Functions => Project.Functions;
+    public bool IsFunctionPanelOpen { get => _isFunctionPanelOpen; set => SetProperty(ref _isFunctionPanelOpen, value); }
+    public AutomationFunction? SelectedFunction { get => _selectedFunction; set { if (ReferenceEquals(_selectedFunction, value)) return; if (_selectedFunction is not null && _functionDraftDirty && !SaveFunction()) { OnPropertyChanged(); return; } if (!SetProperty(ref _selectedFunction, value)) return; _loadingFunctionDraft = true; FunctionNameDraft = value?.Name ?? string.Empty; FunctionScriptDraft = value is null ? string.Empty : _scriptParser.Serialize(value.Actions); _loadingFunctionDraft = false; _functionDraftDirty = false; FunctionErrors = string.Empty; RaiseCommandStates(); } }
+    public string FunctionNameDraft { get => _functionNameDraft; set { if (SetProperty(ref _functionNameDraft, value) && !_loadingFunctionDraft) _functionDraftDirty = true; } }
+    public string FunctionScriptDraft { get => _functionScriptDraft; set { if (SetProperty(ref _functionScriptDraft, value) && !_loadingFunctionDraft) _functionDraftDirty = true; } }
+    public string FunctionErrors { get => _functionErrors; private set => SetProperty(ref _functionErrors, value); }
     public AutomationAction? SelectedAction { get => _selectedAction; set { if (SetProperty(ref _selectedAction, value)) RaiseCommandStates(); } }
     public string ProjectTitle => Project.Name + (IsModified ? " *" : string.Empty);
     public string TargetSummary => Project.Target is null ? LocalizationService.Get("NoTarget") : $"{Project.Target.ProcessName} - {Project.Target.WindowTitle}";
@@ -135,11 +151,25 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ICommand InsertBelowCommand { get; }
     public ICommand AddActionCommand { get; }
     public ICommand ManageFunctionsCommand { get; }
+    public ICommand NewFunctionCommand { get; }
+    public ICommand SaveFunctionCommand { get; }
+    public ICommand DeleteFunctionCommand { get; }
+    public ICommand CloseFunctionPanelCommand { get; }
 
     public void MoveAction(int oldIndex, int newIndex)
     {
         if (oldIndex < 0 || newIndex < 0 || oldIndex >= Actions.Count || newIndex >= Actions.Count || oldIndex == newIndex) return;
         Actions.Move(oldIndex, newIndex); SelectedAction = Actions[newIndex];
+    }
+
+    public void AddActionAt(string type, int insertionIndex)
+    {
+        var count = Actions.Count;
+        AddAction(type, null);
+        if (Actions.Count == count) return;
+        var addedIndex = Actions.Count - 1;
+        var targetIndex = Math.Clamp(insertionIndex, 0, addedIndex);
+        if (addedIndex != targetIndex) MoveAction(addedIndex, targetIndex);
     }
 
     public void ToggleRunFromHotkey()
@@ -184,6 +214,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (!await ConfirmContinueAsync()) return;
         DetachCollection(Actions); Project = new AutomationProject(); AttachCollection(Actions);
         _projectPath = null; SelectedAction = null; IsModified = false; ScriptErrors = string.Empty; SyncScriptFromVisual();
+        SelectedFunction = null; IsFunctionPanelOpen = false;
         _workflowHistory.Reset(Actions);
         NotifyScheduleChanged(); OnPropertyChanged(nameof(HasTarget)); StatusText = LocalizationService.Language == "vi" ? "Đã tạo dự án mới - Chọn cửa sổ đích" : "New project created - Select a target window";
     }
@@ -197,6 +228,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var loaded = await _projectService.LoadAsync(path); if (loaded.Target is not null) _windowManager.Resolve(loaded.Target);
             DetachCollection(Actions); Project = loaded; AttachCollection(Actions);
             _projectPath = path; IsModified = false; SelectedAction = null; SyncScriptFromVisual(); OnPropertyChanged(nameof(HasTarget)); OnPropertyChanged(nameof(TargetSummary)); NotifyScheduleChanged();
+            SelectedFunction = null; IsFunctionPanelOpen = false;
             _workflowHistory.Reset(Actions); RaiseCommandStates();
             StatusText = $"Opened {Path.GetFileName(path)}";
         }
@@ -293,30 +325,80 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void AddAction(string type, bool? above)
     {
-        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "Drag" => new BackgroundAutomationStudio.Models.DragAction(), "Scroll" => new ScrollAction(), "MovePointer" => new MovePointerAction(), "WaitForImage" => new WaitForImageAction(), "ClickImage" => new ClickImageAction(), "CallFunction" => new CallFunctionAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), "KeyHold" => new KeyHoldAction(), _ => new WaitAction() };
+        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "Drag" => new BackgroundAutomationStudio.Models.DragAction(), "Scroll" => new ScrollAction(), "MovePointer" => new MovePointerAction(), "WaitForImage" => new WaitForImageAction(), "ClickImage" => new ClickImageAction(), "WaitForColor" => new WaitForColorAction(), "ClickColor" => new ClickColorAction(), "CallFunction" => new CallFunctionAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), "KeyHold" => new KeyHoldAction(), _ => new WaitAction() };
         if (action is CallFunctionAction && Functions.Count == 0)
         {
             StatusText = LocalizationService.Language == "vi" ? "Hãy tạo ít nhất một hàm dùng lại trước khi thêm bước CALL" : "Create at least one reusable function before adding a CALL step";
-            if (!ManageFunctions() || Functions.Count == 0) return;
+            OpenFunctionPanel();
+            if (Functions.Count == 0) NewFunction();
+            return;
         }
         var edited = _dialogs.EditAction(action, Project.Target, Functions, true); if (edited is null) return;
         var index = above is null || SelectedAction is null ? Actions.Count : Actions.IndexOf(SelectedAction) + (above.Value ? 0 : 1); Actions.Insert(index, edited); SelectedAction = edited;
     }
 
     private void EditSelected() { if (SelectedAction is null) return; var edited = _dialogs.EditAction(SelectedAction, Project.Target, Functions); if (edited is null) return; var index = Actions.IndexOf(SelectedAction); Actions[index] = edited; SelectedAction = edited; }
-    private bool ManageFunctions()
+    private void OpenFunctionPanel()
     {
-        var edited = _dialogs.ManageFunctions(Functions, Actions); if (edited is null) return false;
-        Project.Functions = new(edited.Select(item => item.Clone())); OnPropertyChanged(nameof(Functions));
-        foreach (var call in Actions.OfType<CallFunctionAction>())
-        {
-            var match = Functions.FirstOrDefault(item => item.Id == call.FunctionId) ?? Functions.FirstOrDefault(item => item.Name.Equals(call.FunctionName, StringComparison.OrdinalIgnoreCase));
-            if (match is not null) { call.FunctionId = match.Id; call.FunctionName = match.Name; }
-        }
-        MarkModified(); SyncScriptFromVisual(); CaptureWorkflowHistory(); RaiseCommandStates();
-        SyncCoordinateOverlay();
-        StatusText = LocalizationService.Language == "vi" ? $"Đã cập nhật {Functions.Count} hàm dùng lại" : $"Updated {Functions.Count} reusable function(s)";
+        IsFunctionPanelOpen = true;
+        SelectedFunction ??= Functions.FirstOrDefault();
+    }
+
+    private void NewFunction()
+    {
+        if (_functionDraftDirty && !SaveFunction()) return;
+        var baseName = LocalizationService.Language == "vi" ? "Hàm mới" : "New function";
+        var index = 1;
+        var name = baseName;
+        while (Functions.Any(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) name = $"{baseName} {++index}";
+        var function = new AutomationFunction { Name = name, Actions = new([new WaitAction { Milliseconds = 500 }]) };
+        Functions.Add(function);
+        OnPropertyChanged(nameof(Functions));
+        SelectedFunction = function;
+        IsFunctionPanelOpen = true;
+        MarkModified();
+    }
+
+    private bool SaveFunction()
+    {
+        if (SelectedFunction is null) return true;
+        var name = FunctionNameDraft.Trim();
+        if (string.IsNullOrWhiteSpace(name)) { FunctionErrors = LocalizationService.Language == "vi" ? "Tên hàm không được để trống." : "Function name cannot be empty."; return false; }
+        if (Functions.Any(item => item != SelectedFunction && item.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) { FunctionErrors = LocalizationService.Language == "vi" ? "Tên hàm đã tồn tại." : "A function with this name already exists."; return false; }
+        var parsed = _scriptParser.Parse(FunctionScriptDraft);
+        if (!parsed.IsValid || parsed.Actions.Count == 0) { FunctionErrors = parsed.IsValid ? (LocalizationService.Language == "vi" ? "Hàm cần ít nhất một bước." : "A function needs at least one step.") : string.Join(Environment.NewLine, parsed.Errors); return false; }
+        var previousName = SelectedFunction.Name;
+        var previousActions = SelectedFunction.Actions;
+        SelectedFunction.Name = name;
+        SelectedFunction.Actions = new(parsed.Actions);
+        try { _ = WorkflowFunctionExpander.Expand([new CallFunctionAction { FunctionId = SelectedFunction.Id, FunctionName = name }], Functions); }
+        catch (Exception ex) { SelectedFunction.Name = previousName; SelectedFunction.Actions = previousActions; FunctionErrors = ex.Message; return false; }
+        foreach (var call in Actions.OfType<CallFunctionAction>().Where(call => call.FunctionId == SelectedFunction.Id || call.FunctionName.Equals(previousName, StringComparison.OrdinalIgnoreCase))) { call.FunctionId = SelectedFunction.Id; call.FunctionName = name; }
+        FunctionErrors = string.Empty;
+        _functionDraftDirty = false;
+        OnPropertyChanged(nameof(Functions));
+        MarkModified(); SyncScriptFromVisual(); SyncCoordinateOverlay();
+        StatusText = LocalizationService.Language == "vi" ? $"Đã lưu hàm {name}" : $"Saved function {name}";
         return true;
+    }
+
+    private void CloseFunctionPanel()
+    {
+        if (_functionDraftDirty && !SaveFunction()) return;
+        IsFunctionPanelOpen = false;
+    }
+
+    private void DeleteFunction()
+    {
+        if (SelectedFunction is null) return;
+        var usedByWorkflow = Actions.OfType<CallFunctionAction>().Any(call => call.FunctionId == SelectedFunction.Id || call.FunctionName.Equals(SelectedFunction.Name, StringComparison.OrdinalIgnoreCase));
+        var usedByFunction = Functions.Where(item => item != SelectedFunction).SelectMany(item => item.Actions).OfType<CallFunctionAction>().Any(call => call.FunctionId == SelectedFunction.Id || call.FunctionName.Equals(SelectedFunction.Name, StringComparison.OrdinalIgnoreCase));
+        if (usedByWorkflow || usedByFunction) { FunctionErrors = LocalizationService.Language == "vi" ? "Hãy xóa các bước CALL đang dùng hàm này trước." : "Remove CALL steps that use this function first."; return; }
+        var index = Functions.IndexOf(SelectedFunction);
+        Functions.Remove(SelectedFunction);
+        OnPropertyChanged(nameof(Functions));
+        SelectedFunction = Functions.Count == 0 ? null : Functions[Math.Min(index, Functions.Count - 1)];
+        MarkModified(); SyncCoordinateOverlay();
     }
     private void DeleteSelected() { if (SelectedAction is null) return; var index = Actions.IndexOf(SelectedAction); Actions.Remove(SelectedAction); SelectedAction = Actions.Count == 0 ? null : Actions[Math.Min(index, Actions.Count - 1)]; }
     private void ClearAll()
@@ -384,6 +466,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         catch { visibleActions = Actions.ToList(); }
         _coordinateOverlay.Configure(ShowCoordinateMap && !IsRecording && !IsRunning, Project.Target, visibleActions, ShowCoordinateGrid, MarkerColor, MarkerShape);
     }
-    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, UndoCommand, RedoCommand, DuplicateCommand, CopyCommand, CutCommand, PasteCommand, ToggleEnabledCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand, ManageFunctionsCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
+    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, UndoCommand, RedoCommand, DuplicateCommand, CopyCommand, CutCommand, PasteCommand, ToggleEnabledCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand, ManageFunctionsCommand, NewFunctionCommand, SaveFunctionCommand, DeleteFunctionCommand, CloseFunctionPanelCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
     public void Dispose() { _recordTimer.Stop(); _coordinateOverlay.Dispose(); _recorder.Dispose(); _runner.Stop(); if (_runner is IDisposable disposable) disposable.Dispose(); _windowPicker.Dispose(); }
 }

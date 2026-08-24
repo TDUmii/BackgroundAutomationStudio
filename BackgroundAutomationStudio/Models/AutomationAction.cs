@@ -17,6 +17,8 @@ namespace BackgroundAutomationStudio.Models;
 [JsonDerivedType(typeof(WaitAction), "wait")]
 [JsonDerivedType(typeof(WaitForImageAction), "waitForImage")]
 [JsonDerivedType(typeof(ClickImageAction), "clickImage")]
+[JsonDerivedType(typeof(WaitForColorAction), "waitForColor")]
+[JsonDerivedType(typeof(ClickColorAction), "clickColor")]
 public abstract class AutomationAction : ObservableObject
 {
     private bool _enabled = true;
@@ -210,4 +212,99 @@ public sealed class ClickImageAction : ImageScanAction
     public override string ActionType => "Click Image";
     public override string Summary => ImageSummary(RightClick ? "Right click" : "Left click");
     public override AutomationAction Clone() { var action = new ClickImageAction { OffsetX = OffsetX, OffsetY = OffsetY, RightClick = RightClick }; CopyImageScanTo(action); return action; }
+}
+
+public abstract class ColorScanAction : AutomationAction
+{
+    private string _colorHex = "#FF3B30";
+    private int _tolerance = 18;
+    private int _minimumPixels = 9;
+    private int _timeoutMilliseconds = 10000;
+    private int _pollIntervalMilliseconds = 150;
+    private int _regionX;
+    private int _regionY;
+    private int _regionWidth;
+    private int _regionHeight;
+
+    public string ColorHex
+    {
+        get => _colorHex;
+        set
+        {
+            var next = (value ?? string.Empty).Trim().ToUpperInvariant();
+            if (SetProperty(ref _colorHex, next)) NotifyColorChanged();
+        }
+    }
+    [JsonIgnore] public int Red { get => GetChannel(0); set => SetChannel(0, value); }
+    [JsonIgnore] public int Green { get => GetChannel(1); set => SetChannel(1, value); }
+    [JsonIgnore] public int Blue { get => GetChannel(2); set => SetChannel(2, value); }
+    public int Tolerance { get => _tolerance; set { if (SetProperty(ref _tolerance, Math.Clamp(value, 0, 255))) OnPropertyChanged(nameof(Summary)); } }
+    public int MinimumPixels { get => _minimumPixels; set { if (SetProperty(ref _minimumPixels, Math.Clamp(value, 1, 1_000_000))) OnPropertyChanged(nameof(Summary)); } }
+    public int TimeoutMilliseconds { get => _timeoutMilliseconds; set { if (SetProperty(ref _timeoutMilliseconds, Math.Clamp(value, 0, 3_600_000))) OnPropertyChanged(nameof(Summary)); } }
+    public int PollIntervalMilliseconds { get => _pollIntervalMilliseconds; set { if (SetProperty(ref _pollIntervalMilliseconds, Math.Clamp(value, 50, 10_000))) OnPropertyChanged(nameof(Summary)); } }
+    public int RegionX { get => _regionX; set => SetProperty(ref _regionX, Math.Max(0, value)); }
+    public int RegionY { get => _regionY; set => SetProperty(ref _regionY, Math.Max(0, value)); }
+    public int RegionWidth { get => _regionWidth; set { if (SetProperty(ref _regionWidth, Math.Max(0, value))) OnPropertyChanged(nameof(Summary)); } }
+    public int RegionHeight { get => _regionHeight; set { if (SetProperty(ref _regionHeight, Math.Max(0, value))) OnPropertyChanged(nameof(Summary)); } }
+    [JsonIgnore] public bool UsesFullClient => RegionWidth == 0 || RegionHeight == 0;
+    [JsonIgnore] public bool HasValidColor => TryParseColor(ColorHex, out _, out _, out _);
+
+    public static bool TryParseColor(string? value, out byte red, out byte green, out byte blue)
+    {
+        red = green = blue = 0;
+        var hex = (value ?? string.Empty).Trim();
+        if (hex.StartsWith('#')) hex = hex[1..];
+        if (hex.Length != 6 || !int.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var packed)) return false;
+        red = (byte)(packed >> 16); green = (byte)(packed >> 8); blue = (byte)packed; return true;
+    }
+
+    protected void CopyColorScanTo(ColorScanAction target)
+    {
+        target.ColorHex = ColorHex; target.Tolerance = Tolerance; target.MinimumPixels = MinimumPixels;
+        target.TimeoutMilliseconds = TimeoutMilliseconds; target.PollIntervalMilliseconds = PollIntervalMilliseconds;
+        target.RegionX = RegionX; target.RegionY = RegionY; target.RegionWidth = RegionWidth; target.RegionHeight = RegionHeight;
+        CopyCommonTo(target);
+    }
+
+    protected string ColorSummary(string behavior) => $"{behavior}  {ColorHex}  ±{Tolerance}  {(UsesFullClient ? "Full client" : $"{RegionWidth} x {RegionHeight} at {RegionX},{RegionY}")}";
+
+    private int GetChannel(int index)
+    {
+        if (!TryParseColor(ColorHex, out var red, out var green, out var blue)) return 0;
+        return index == 0 ? red : index == 1 ? green : blue;
+    }
+    private void SetChannel(int index, int value)
+    {
+        TryParseColor(ColorHex, out var red, out var green, out var blue);
+        var channel = (byte)Math.Clamp(value, 0, 255);
+        if (index == 0) red = channel; else if (index == 1) green = channel; else blue = channel;
+        ColorHex = $"#{red:X2}{green:X2}{blue:X2}";
+    }
+    private void NotifyColorChanged()
+    {
+        OnPropertyChanged(nameof(Red)); OnPropertyChanged(nameof(Green)); OnPropertyChanged(nameof(Blue));
+        OnPropertyChanged(nameof(HasValidColor)); OnPropertyChanged(nameof(Summary));
+    }
+}
+
+public sealed class WaitForColorAction : ColorScanAction
+{
+    private bool _waitForDisappear;
+    public bool WaitForDisappear { get => _waitForDisappear; set { if (SetProperty(ref _waitForDisappear, value)) OnPropertyChanged(nameof(Summary)); } }
+    public override string ActionType => "Wait for Color";
+    public override string Summary => ColorSummary(WaitForDisappear ? "Disappear" : "Appear");
+    public override AutomationAction Clone() { var action = new WaitForColorAction { WaitForDisappear = WaitForDisappear }; CopyColorScanTo(action); return action; }
+}
+
+public sealed class ClickColorAction : ColorScanAction
+{
+    private int _offsetX;
+    private int _offsetY;
+    private bool _rightClick;
+    public int OffsetX { get => _offsetX; set { if (SetProperty(ref _offsetX, Math.Clamp(value, -10000, 10000))) OnPropertyChanged(nameof(Summary)); } }
+    public int OffsetY { get => _offsetY; set { if (SetProperty(ref _offsetY, Math.Clamp(value, -10000, 10000))) OnPropertyChanged(nameof(Summary)); } }
+    public bool RightClick { get => _rightClick; set { if (SetProperty(ref _rightClick, value)) OnPropertyChanged(nameof(Summary)); } }
+    public override string ActionType => "Click Color";
+    public override string Summary => ColorSummary(RightClick ? "Right click" : "Left click");
+    public override AutomationAction Clone() { var action = new ClickColorAction { OffsetX = OffsetX, OffsetY = OffsetY, RightClick = RightClick }; CopyColorScanTo(action); return action; }
 }

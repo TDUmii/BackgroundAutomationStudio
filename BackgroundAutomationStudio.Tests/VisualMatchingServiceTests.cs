@@ -34,4 +34,17 @@ public sealed class VisualMatchingServiceTests
 
         Assert.False(match.Found);
     }
+
+    [Fact]
+    public void FindColorInPng_FindsLargestMatchingColorRegionWithTolerance()
+    {
+        using var frame = new Mat(new Size(180, 120), MatType.CV_8UC3, Scalar.Black);
+        Cv2.Rectangle(frame, new Rect(70, 35, 30, 20), new Scalar(28, 198, 242), -1);
+        Cv2.ImEncode(".png", frame, out var framePng);
+
+        var match = VisualMatchingService.FindColorInPng(framePng, "#F0C51E", 5, 100, 20, 10, 120, 90);
+
+        Assert.True(match.Found);
+        Assert.Equal((85, 45), (match.CenterX, match.CenterY));
+    }
 }

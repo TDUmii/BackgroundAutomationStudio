@@ -165,4 +165,17 @@ public sealed class ActionModelTests
         Assert.NotSame(original.TemplatePng, clone.TemplatePng);
         Assert.NotEqual(original.Id, clone.Id);
     }
+
+    [Fact]
+    public void ColorAction_SynchronizesHexAndRgbAndClonesSettings()
+    {
+        var original = new ClickColorAction { ColorHex = "#1234AB", Tolerance = 21, MinimumPixels = 14, OffsetX = -4, OffsetY = 9, RightClick = true };
+        Assert.Equal((18, 52, 171), (original.Red, original.Green, original.Blue));
+        original.Green = 200;
+        Assert.Equal("#12C8AB", original.ColorHex);
+
+        var clone = Assert.IsType<ClickColorAction>(original.Clone());
+        Assert.Equal(("#12C8AB", 21, 14, -4, 9, true), (clone.ColorHex, clone.Tolerance, clone.MinimumPixels, clone.OffsetX, clone.OffsetY, clone.RightClick));
+        Assert.NotEqual(original.Id, clone.Id);
+    }
 }

@@ -177,4 +177,22 @@ public sealed class ScriptParserTests
         Assert.Equal((true, -3, 6, 87), (click.RightClick, click.OffsetX, click.OffsetY, click.SimilarityPercent));
         Assert.Equal(template, click.TemplatePng);
     }
+
+    [Fact]
+    public void ColorActions_RoundTripHexRgbAndScanSettingsThroughDsl()
+    {
+        AutomationAction[] actions =
+        [
+            new WaitForColorAction { ColorHex = "#12ABEF", Tolerance = 24, MinimumPixels = 12, TimeoutMilliseconds = 6000, PollIntervalMilliseconds = 90, WaitForDisappear = true, RegionX = 4, RegionY = 5, RegionWidth = 300, RegionHeight = 200 },
+            new ClickColorAction { ColorHex = "#C81E42", Tolerance = 10, MinimumPixels = 20, TimeoutMilliseconds = 4500, PollIntervalMilliseconds = 110, RightClick = true, OffsetX = -2, OffsetY = 8 }
+        ];
+
+        var parsed = _parser.Parse(_parser.Serialize(actions));
+
+        Assert.True(parsed.IsValid, string.Join(Environment.NewLine, parsed.Errors));
+        var wait = Assert.IsType<WaitForColorAction>(parsed.Actions[0]);
+        Assert.Equal(("#12ABEF", 24, 12, true, 4, 5, 300, 200), (wait.ColorHex, wait.Tolerance, wait.MinimumPixels, wait.WaitForDisappear, wait.RegionX, wait.RegionY, wait.RegionWidth, wait.RegionHeight));
+        var click = Assert.IsType<ClickColorAction>(parsed.Actions[1]);
+        Assert.Equal(("#C81E42", true, -2, 8), (click.ColorHex, click.RightClick, click.OffsetX, click.OffsetY));
+    }
 }

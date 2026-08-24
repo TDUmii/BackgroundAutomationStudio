@@ -4,9 +4,9 @@ Build repeatable Windows workflows around a selected target window while keeping
 
 ## Download for Windows
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.4.0/BackgroundAutomationStudio.exe)**
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.5.0/BackgroundAutomationStudio.exe)**
 
-The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.4.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.4.0).
+The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.5.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.5.0).
 
 ## What makes it different
 
@@ -19,6 +19,8 @@ The release is a self-contained Windows x64 executable; no separate .NET install
 | Reuse without clutter | Named functions turn repeated sequences into a single `CALL` step and support safe nesting. |
 | Spatial overview | A click-through overlay draws the live client-coordinate grid and every current point directly over the foreground target. |
 | Visual decisions | Embedded PNG templates let a workflow wait for a visual state or click the center of a matched element without machine-specific paths. |
+| Color decisions | HEX or RGB targets can wait for a color or click its largest matching region with adjustable tolerance. |
+| Block workflow | A categorized block palette can be clicked or dragged into the workflow while preserving the readable DSL. |
 | Local-first | Projects are ordinary JSON files. There are no accounts, telemetry, cloud services, or background agents. |
 
 ## Key features
@@ -27,7 +29,8 @@ The release is a self-contained Windows x64 executable; no separate .NET install
 - Add precise click, drag, scroll, wait, key, text, pointer-move, and function-call steps manually.
 - Inspect points directly on the target with a denser 25-pixel Screen Grid and an `X | Y` label above the live pointer; the target-owned overlay stays above topmost or borderless-style targets while they are foreground.
 - Toggle grid lines and choose blue, red, green, amber, or purple pin, diamond, or crosshair markers.
-- Create reusable functions from the same DSL, call them from any workflow position, nest them, and receive a clear error for missing or circular calls.
+- Create and edit reusable functions in the main window, call them from any workflow position, nest them, and receive a clear error for missing or circular calls.
+- Drag categorized pointer, vision, input, flow, and reuse blocks directly into the workflow.
 - Edit, reorder, annotate, copy, cut, paste, duplicate, skip, delete, undo, and redo workflow steps.
 - Run a fixed count, continuously until stopped, for a duration, or until a clock time.
 - Configure independent global Run/Emergency Stop and Pause/Resume shortcuts.
@@ -38,6 +41,7 @@ The release is a self-contained Windows x64 executable; no separate .NET install
 - Wait for an image to appear or disappear, or click a matched image with left or right click and optional X/Y offsets.
 - Tune similarity, timeout, scan interval, and a client-relative search region. The matcher checks several nearby scales and performs best with a small region.
 - Keep PNG templates embedded inside the project JSON, so moving or sharing a project does not expose a local file path.
+- Choose a target from the color strip or enter HEX or RGB, then tune tolerance, minimum area, timeout, polling, offsets, and a client-relative search region.
 
 ## Playback modes
 
@@ -53,7 +57,7 @@ No mode injects code, modifies memory or network traffic, installs a driver, cre
 
 ## Workflow commands
 
-The visual editor and DSL are interchangeable. Available commands include `CLICK`, `RIGHT_CLICK`, `DOUBLE_CLICK`, `DRAG`, `SCROLL`, `MOVE`, `TYPE`, `KEY`, `HOLD`, `WAIT_IMAGE`, `CLICK_IMAGE`, `WAIT`, and `CALL`. Add `# NOTE` before a step to keep an inline description. Image commands include their PNG data so they remain portable when the script is edited.
+The visual editor and DSL are interchangeable. Available commands include `CLICK`, `RIGHT_CLICK`, `DOUBLE_CLICK`, `DRAG`, `SCROLL`, `MOVE`, `TYPE`, `KEY`, `HOLD`, `WAIT_IMAGE`, `CLICK_IMAGE`, `WAIT_COLOR`, `CLICK_COLOR`, `WAIT`, and `CALL`. Add `# NOTE` before a step to keep an inline description. Image commands include their PNG data so they remain portable when the script is edited.
 
 ```text
 MOVE 240 180

@@ -29,7 +29,7 @@ public partial class ActionEditorWindow : Window
             invalidField.Focus(); invalidField.SelectAll();
             var fieldName = AutomationProperties.GetName(invalidField);
             if (string.IsNullOrWhiteSpace(fieldName)) fieldName = "Numeric field";
-            var requirement = Equals(invalidField.Tag, "PositiveInteger") ? "a whole number greater than zero" : Equals(invalidField.Tag, "NonZeroInteger") ? "a non-zero wheel delta between -12000 and 12000" : "a whole number greater than or equal to zero";
+            var requirement = Equals(invalidField.Tag, "PositiveInteger") ? "a whole number greater than zero" : Equals(invalidField.Tag, "NonZeroInteger") ? "a non-zero wheel delta between -12000 and 12000" : Equals(invalidField.Tag, "ColorChannel") ? "a whole number from 0 to 255" : "a whole number greater than or equal to zero";
             MessageBox.Show($"{fieldName} must be {requirement}. Enter a valid value, then save again.", "Check numeric value", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -38,6 +38,11 @@ public partial class ActionEditorWindow : Window
         {
             if (!imageAction.HasTemplate) { MessageBox.Show("Choose a PNG image template before saving this action.", "Image template required", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             if (imageAction.RegionWidth == 0 ^ imageAction.RegionHeight == 0) { MessageBox.Show("Set both search region width and height, or leave both at zero to scan the full target client area.", "Check search region", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+        }
+        if (Action is ColorScanAction colorAction)
+        {
+            if (!colorAction.HasValidColor) { MessageBox.Show("Enter a valid color as #RRGGBB or RGB values.", "Color required", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+            if (colorAction.RegionWidth == 0 ^ colorAction.RegionHeight == 0) { MessageBox.Show("Set both search region width and height, or leave both at zero to scan the full target client area.", "Check search region", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
         }
         var keyName = Action switch { KeyPressAction key => key.KeyName, KeyHoldAction hold => hold.KeyName, _ => null };
         if (keyName is not null && !KeyNames.IsSupported(keyName)) { MessageBox.Show($"Unsupported key \"{keyName}\". Use a listed key or a shortcut such as CTRL+C.", "Invalid key", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
@@ -69,19 +74,36 @@ public partial class ActionEditorWindow : Window
     private TextBox? ValidateNumericFields()
     {
         TextBox? firstInvalid = null;
-        foreach (var field in FindVisualChildren<TextBox>(this).Where(box => Equals(box.Tag, "NonNegativeInteger") || Equals(box.Tag, "PositiveInteger") || Equals(box.Tag, "NonZeroInteger")))
+        foreach (var field in FindVisualChildren<TextBox>(this).Where(box => Equals(box.Tag, "NonNegativeInteger") || Equals(box.Tag, "PositiveInteger") || Equals(box.Tag, "NonZeroInteger") || Equals(box.Tag, "ColorChannel")))
         {
-            var valid = int.TryParse(field.Text, out var value) && (Equals(field.Tag, "PositiveInteger") ? value > 0 : Equals(field.Tag, "NonZeroInteger") ? value is >= -12000 and <= 12000 and not 0 : value >= 0);
+            var valid = int.TryParse(field.Text, out var value) && (Equals(field.Tag, "PositiveInteger") ? value > 0 : Equals(field.Tag, "NonZeroInteger") ? value is >= -12000 and <= 12000 and not 0 : Equals(field.Tag, "ColorChannel") ? value is >= 0 and <= 255 : value >= 0);
             field.ClearValue(Control.BorderBrushProperty); field.ClearValue(FrameworkElement.ToolTipProperty);
             if (!valid)
             {
                 field.BorderBrush = (Brush)FindResource("DangerBrush");
-                field.ToolTip = Equals(field.Tag, "PositiveInteger") ? "Enter a whole number greater than zero." : Equals(field.Tag, "NonZeroInteger") ? "Enter a non-zero wheel delta between -12000 and 12000." : "Enter a whole number greater than or equal to zero.";
+                field.ToolTip = Equals(field.Tag, "PositiveInteger") ? "Enter a whole number greater than zero." : Equals(field.Tag, "NonZeroInteger") ? "Enter a non-zero wheel delta between -12000 and 12000." : Equals(field.Tag, "ColorChannel") ? "Enter a whole number from 0 to 255." : "Enter a whole number greater than or equal to zero.";
                 firstInvalid ??= field;
             }
             else field.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
         }
         return firstInvalid;
+    }
+
+    private void ColorHueSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (Action is not ColorScanAction color) return;
+        var hue = Math.Clamp(e.NewValue, 0, 359);
+        var sector = hue / 60d;
+        var index = (int)Math.Floor(sector) % 6;
+        var fraction = sector - Math.Floor(sector);
+        var rising = (int)Math.Round(255 * fraction);
+        var falling = 255 - rising;
+        (int r, int g, int b) = index switch
+        {
+            0 => (255, rising, 0), 1 => (falling, 255, 0), 2 => (0, 255, rising),
+            3 => (0, falling, 255), 4 => (rising, 0, 255), _ => (255, 0, falling)
+        };
+        color.ColorHex = $"#{r:X2}{g:X2}{b:X2}";
     }
 
     private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root) where T : DependencyObject

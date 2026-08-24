@@ -134,6 +134,27 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                         else
                             DispatchClick(hwnd, (ClickAction)click, false, playbackMode);
                     }
+                    else if (action is WaitForColorAction waitColor)
+                    {
+                        await WaitForColorConditionAsync(hwnd, waitColor, waitUntilReady, token);
+                    }
+                    else if (action is ClickColorAction clickColor)
+                    {
+                        var match = await WaitForColorMatchAsync(hwnd, clickColor, waitUntilReady, token);
+                        var x = Math.Max(0, match.CenterX + clickColor.OffsetX);
+                        var y = Math.Max(0, match.CenterY + clickColor.OffsetY);
+                        AutomationAction click = clickColor.RightClick
+                            ? new RightClickAction { ClientX = x, ClientY = y }
+                            : new ClickAction { ClientX = x, ClientY = y };
+                        if (gameForeground)
+                            await GameInputDispatcher.DispatchAsync(hwnd, click, gamePressDuration, isReady, waitUntilReady, token);
+                        else if (gameBackground)
+                            await DispatchTargetedGameActionAsync(hwnd, click, waitUntilReady, token);
+                        else if (click is RightClickAction rightClick)
+                            DispatchRightClick(hwnd, rightClick);
+                        else
+                            DispatchClick(hwnd, (ClickAction)click, false, playbackMode);
+                    }
                     else if (gameForeground)
                     {
                         await GameInputDispatcher.DispatchAsync(hwnd, action, gamePressDuration, isReady, waitUntilReady, token);
@@ -222,6 +243,44 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
     private static void ValidateImageAction(ImageScanAction action)
     {
         if (action.TemplatePng.Length == 0) throw new InvalidOperationException(L("Choose a PNG template before running image scan.", "Hãy chọn ảnh mẫu PNG trước khi chạy quét ảnh."));
+        if (action.RegionWidth == 0 ^ action.RegionHeight == 0) throw new InvalidOperationException(L("Set both search region width and height, or leave both at zero for the full client area.", "Hãy đặt cả chiều rộng và chiều cao vùng quét, hoặc để cả hai bằng 0 để quét toàn vùng khách."));
+    }
+
+    private async Task WaitForColorConditionAsync(IntPtr hwnd, WaitForColorAction action, Func<CancellationToken, Task> waitUntilReady, CancellationToken token)
+    {
+        ValidateColorAction(action);
+        var started = DateTimeOffset.UtcNow;
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            await waitUntilReady(token);
+            var match = await Task.Run(() => _visualMatching.FindColor(hwnd, action.ColorHex, action.Tolerance, action.MinimumPixels, action.RegionX, action.RegionY, action.RegionWidth, action.RegionHeight), token);
+            if (action.WaitForDisappear ? !match.Found : match.Found) return;
+            if ((DateTimeOffset.UtcNow - started).TotalMilliseconds >= action.TimeoutMilliseconds)
+                throw new TimeoutException(L(action.WaitForDisappear ? "Color did not disappear before timeout." : "Color was not found before timeout.", action.WaitForDisappear ? "Màu không biến mất trước khi hết thời gian chờ." : "Không tìm thấy màu trước khi hết thời gian chờ."));
+            await DelayWithPauseAsync(action.PollIntervalMilliseconds, waitUntilReady, token);
+        }
+    }
+
+    private async Task<VisualMatchResult> WaitForColorMatchAsync(IntPtr hwnd, ClickColorAction action, Func<CancellationToken, Task> waitUntilReady, CancellationToken token)
+    {
+        ValidateColorAction(action);
+        var started = DateTimeOffset.UtcNow;
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            await waitUntilReady(token);
+            var match = await Task.Run(() => _visualMatching.FindColor(hwnd, action.ColorHex, action.Tolerance, action.MinimumPixels, action.RegionX, action.RegionY, action.RegionWidth, action.RegionHeight), token);
+            if (match.Found) return match;
+            if ((DateTimeOffset.UtcNow - started).TotalMilliseconds >= action.TimeoutMilliseconds)
+                throw new TimeoutException(L("Color was not found before timeout.", "Không tìm thấy màu trước khi hết thời gian chờ."));
+            await DelayWithPauseAsync(action.PollIntervalMilliseconds, waitUntilReady, token);
+        }
+    }
+
+    private static void ValidateColorAction(ColorScanAction action)
+    {
+        if (!action.HasValidColor) throw new InvalidOperationException(L("Enter a valid color as #RRGGBB or RGB values.", "Hãy nhập màu hợp lệ theo dạng #RRGGBB hoặc RGB."));
         if (action.RegionWidth == 0 ^ action.RegionHeight == 0) throw new InvalidOperationException(L("Set both search region width and height, or leave both at zero for the full client area.", "Hãy đặt cả chiều rộng và chiều cao vùng quét, hoặc để cả hai bằng 0 để quét toàn vùng khách."));
     }
 
