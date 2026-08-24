@@ -15,12 +15,17 @@ public sealed class ProjectServiceTests
             var project = new AutomationProject
             {
                 Name = "Acceptance",
+                ShowCoordinateMap = true,
+                ShowCoordinateGrid = false,
+                MarkerColor = "#55D6A0",
+                MarkerShape = MarkerShapes.Diamond,
                 RepeatMode = RepeatModes.Duration,
                 RepeatCount = 5,
                 RepeatDurationMinutes = 45,
                 StopAtTime = "21:30",
                 Target = new WindowTarget { ProcessName = "notepad.exe", ProcessId = 42, WindowTitle = "Test.txt - Notepad", WindowTitleContains = "Notepad", WindowClassName = "Notepad", RecordedX = 200, RecordedY = 100, RecordedWidth = 1200, RecordedHeight = 700, LastKnownHwnd = 12345 },
-                Actions = [new ClickAction { ClientX = 400, ClientY = 250 }, new TypeTextAction { Text = "Hello Umi" }, new KeyPressAction { KeyName = "ENTER", Enabled = false }, new KeyHoldAction { KeyName = "E", Milliseconds = 2200 }, new DragAction { StartX = 1, StartY = 2, EndX = 3, EndY = 4, Milliseconds = 500 }]
+                Actions = [new ClickAction { ClientX = 400, ClientY = 250 }, new TypeTextAction { Text = "Hello Umi" }, new KeyPressAction { KeyName = "ENTER", Enabled = false }, new KeyHoldAction { KeyName = "E", Milliseconds = 2200 }, new DragAction { StartX = 1, StartY = 2, EndX = 3, EndY = 4, Milliseconds = 500 }],
+                Functions = [new AutomationFunction { Name = "Confirm", Actions = [new MovePointerAction { ClientX = 40, ClientY = 50 }, new ClickAction { ClientX = 40, ClientY = 50 }] }]
             };
             var service = new ProjectService();
             await service.SaveAsync(project, path);
@@ -36,6 +41,13 @@ public sealed class ProjectServiceTests
             Assert.False(loaded.Actions[2].Enabled);
             Assert.Equal(2200, Assert.IsType<KeyHoldAction>(loaded.Actions[3]).Milliseconds);
             Assert.Equal(4, Assert.IsType<DragAction>(loaded.Actions[4]).EndY);
+            Assert.True(loaded.ShowCoordinateMap);
+            Assert.False(loaded.ShowCoordinateGrid);
+            Assert.Equal("#55D6A0", loaded.MarkerColor);
+            Assert.Equal(MarkerShapes.Diamond, loaded.MarkerShape);
+            var function = Assert.Single(loaded.Functions);
+            Assert.Equal("Confirm", function.Name);
+            Assert.IsType<MovePointerAction>(function.Actions[0]);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
@@ -94,5 +106,19 @@ public sealed class ProjectServiceTests
     {
         var json = JsonSerializer.Serialize<AutomationAction>(new DoubleClickAction { ClientX = 10, ClientY = 20 }, ProjectService.JsonOptions);
         Assert.Contains("\"$type\": \"doubleClick\"", json);
+    }
+
+    [Fact]
+    public async Task Load_NormalizesInvalidMarkerAppearance()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"bas-{Guid.NewGuid():N}.json");
+        try
+        {
+            await File.WriteAllTextAsync(path, "{\"version\":1,\"markerColor\":\"not-a-color\",\"markerShape\":\"Triangle\",\"actions\":[]}");
+            var loaded = await new ProjectService().LoadAsync(path);
+            Assert.Equal("#74A7FF", loaded.MarkerColor);
+            Assert.Equal(MarkerShapes.Pin, loaded.MarkerShape);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 }

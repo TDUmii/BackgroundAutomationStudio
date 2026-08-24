@@ -12,6 +12,8 @@ namespace BackgroundAutomationStudio.Models;
 [JsonDerivedType(typeof(KeyHoldAction), "keyHold")]
 [JsonDerivedType(typeof(DragAction), "drag")]
 [JsonDerivedType(typeof(ScrollAction), "scroll")]
+[JsonDerivedType(typeof(MovePointerAction), "movePointer")]
+[JsonDerivedType(typeof(CallFunctionAction), "callFunction")]
 [JsonDerivedType(typeof(WaitAction), "wait")]
 public abstract class AutomationAction : ObservableObject
 {
@@ -116,6 +118,24 @@ public sealed class ScrollAction : PointerAction
     public override string ActionType => "Scroll";
     public override string Summary => $"X: {ClientX}  Y: {ClientY}  {(Delta > 0 ? "↑" : "↓")} {Math.Abs(Delta) / 120d:0.#}";
     public override AutomationAction Clone() { var a = new ScrollAction { ClientX = ClientX, ClientY = ClientY, Delta = Delta }; CopyCommonTo(a); return a; }
+}
+
+public sealed class MovePointerAction : PointerAction
+{
+    public override string ActionType => "Move Pointer";
+    public override AutomationAction Clone() { var a = new MovePointerAction { ClientX = ClientX, ClientY = ClientY }; CopyCommonTo(a); return a; }
+}
+
+public sealed class CallFunctionAction : AutomationAction
+{
+    private Guid _functionId;
+    private string _functionName = string.Empty;
+    public Guid FunctionId { get => _functionId; set { if (SetProperty(ref _functionId, value)) OnPropertyChanged(nameof(Summary)); } }
+    public string FunctionName { get => _functionName; set { if (SetProperty(ref _functionName, value?.Trim() ?? string.Empty)) OnPropertyChanged(nameof(Summary)); } }
+    [JsonIgnore] public IEnumerable<AutomationFunction> AvailableFunctions { get; set; } = [];
+    public override string ActionType => "Call Function";
+    public override string Summary => string.IsNullOrWhiteSpace(FunctionName) ? "No function selected" : FunctionName;
+    public override AutomationAction Clone() { var a = new CallFunctionAction { FunctionId = FunctionId, FunctionName = FunctionName, AvailableFunctions = AvailableFunctions }; CopyCommonTo(a); return a; }
 }
 
 public sealed class WaitAction : AutomationAction

@@ -59,6 +59,9 @@ public static class GameInputDispatcher
                 MoveToClientPoint(target, scroll.ClientX, scroll.ClientY);
                 SendChecked(new INPUT { Type = NativeMethods.InputMouse, Data = new INPUTUNION { Mouse = new MOUSEINPUT { MouseData = unchecked((uint)scroll.Delta), Flags = NativeMethods.MouseeventfWheel } } });
                 break;
+            case MovePointerAction move:
+                MoveToClientPoint(target, move.ClientX, move.ClientY);
+                break;
         }
     }
 

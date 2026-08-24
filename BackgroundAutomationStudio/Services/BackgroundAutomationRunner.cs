@@ -120,6 +120,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                             case KeyHoldAction hold: await PostKeyHoldAsync(hwnd, hold, waitUntilReady, token); break;
                             case DragAction drag: await PostDragAsync(hwnd, drag, waitUntilReady, token); break;
                             case ScrollAction scroll: PostScroll(hwnd, scroll); break;
+                            case MovePointerAction move: PostMove(hwnd, move); break;
                         }
                     }
                 }
@@ -322,6 +323,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             case KeyHoldAction hold: await PostKeyHoldAsync(root, hold, waitUntilReady, token); break;
             case DragAction drag: await PostDragAsync(root, drag, waitUntilReady, token); break;
             case ScrollAction scroll: PostScroll(root, scroll); break;
+            case MovePointerAction move: PostMove(root, move); break;
         }
         StatusChanged?.Invoke(this, L(
             "Background Engine v2 queued targeted input without activation - processing cannot be verified",
@@ -438,6 +440,12 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
         if (!NativeMethods.ClientToScreen(root, ref screen)) throw new InvalidOperationException("Could not convert the client scroll point.");
         var wheel = new IntPtr(unchecked((int)((uint)(ushort)(short)action.Delta << 16)));
         Post(resolved.Hwnd, NativeMethods.WmMouseWheel, wheel, PackPoint(screen.X, screen.Y));
+    }
+
+    private static void PostMove(IntPtr root, MovePointerAction action)
+    {
+        var resolved = BackgroundMessageTargetResolver.Resolve(root, action.ClientX, action.ClientY);
+        Post(resolved.Hwnd, NativeMethods.WmMouseMove, IntPtr.Zero, PackPoint(resolved.ClientPoint.X, resolved.ClientPoint.Y));
     }
 
     private static void PostText(IntPtr root, string text)

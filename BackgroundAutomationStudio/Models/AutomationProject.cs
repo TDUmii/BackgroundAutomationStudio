@@ -11,7 +11,28 @@ public sealed class AutomationProject
     public int RepeatCount { get; set; } = 1;
     public int RepeatDurationMinutes { get; set; } = 30;
     public string StopAtTime { get; set; } = "23:00";
+    public bool ShowCoordinateMap { get; set; }
+    public bool ShowCoordinateGrid { get; set; } = true;
+    public string MarkerColor { get; set; } = "#74A7FF";
+    public string MarkerShape { get; set; } = MarkerShapes.Pin;
     public ObservableCollection<AutomationAction> Actions { get; set; } = [];
+    public ObservableCollection<AutomationFunction> Functions { get; set; } = [];
+}
+
+public sealed class AutomationFunction
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "New function";
+    public ObservableCollection<AutomationAction> Actions { get; set; } = [];
+    public AutomationFunction Clone() => new() { Id = Id, Name = Name, Actions = new(Actions.Select(action => action.Clone())) };
+}
+
+public static class MarkerShapes
+{
+    public const string Pin = "Pin";
+    public const string Diamond = "Diamond";
+    public const string Crosshair = "Crosshair";
+    public static string Normalize(string? value) => value is Diamond or Crosshair ? value : Pin;
 }
 
 public static class RepeatModes

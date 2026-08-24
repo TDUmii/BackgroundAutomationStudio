@@ -76,12 +76,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         InsertAboveCommand = new RelayCommand(p => AddAction((string?)p ?? "Wait", true), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         InsertBelowCommand = new RelayCommand(p => AddAction((string?)p ?? "Wait", false), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         AddActionCommand = new RelayCommand(p => AddAction((string?)p ?? "Wait", null), _ => !IsRecording && !IsRunning);
+        ManageFunctionsCommand = new RelayCommand(_ => ManageFunctions(), _ => !IsRecording && !IsRunning);
         SyncScriptFromVisual();
         _workflowHistory.Reset(Actions);
     }
 
     public AutomationProject Project { get => _project; private set { if (SetProperty(ref _project, value)) { OnPropertyChanged(nameof(Actions)); OnPropertyChanged(nameof(ProjectTitle)); OnPropertyChanged(nameof(TargetSummary)); } } }
     public ObservableCollection<AutomationAction> Actions => Project.Actions;
+    public ObservableCollection<AutomationFunction> Functions => Project.Functions;
     public AutomationAction? SelectedAction { get => _selectedAction; set { if (SetProperty(ref _selectedAction, value)) RaiseCommandStates(); } }
     public string ProjectTitle => Project.Name + (IsModified ? " *" : string.Empty);
     public string TargetSummary => Project.Target is null ? LocalizationService.Get("NoTarget") : $"{Project.Target.ProcessName} - {Project.Target.WindowTitle}";
@@ -100,6 +102,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public bool IsPaused { get => _isPaused; private set { if (SetProperty(ref _isPaused, value)) OnPropertyChanged(nameof(PauseButtonText)); } }
     public string PauseButtonText => IsPaused ? LocalizationService.Get("Resume") : LocalizationService.Get("Pause");
     public bool HasTarget => Project.Target is not null;
+    public bool ShowCoordinateMap { get => Project.ShowCoordinateMap; set { if (Project.ShowCoordinateMap == value) return; Project.ShowCoordinateMap = value; OnPropertyChanged(); MarkModified(); } }
+    public bool ShowCoordinateGrid { get => Project.ShowCoordinateGrid; set { if (Project.ShowCoordinateGrid == value) return; Project.ShowCoordinateGrid = value; OnPropertyChanged(); MarkModified(); } }
+    public string MarkerColor { get => Project.MarkerColor; set { var safe = value is "#FF727E" or "#55D6A0" or "#F4B860" or "#B69CFF" ? value : "#74A7FF"; if (Project.MarkerColor == safe) return; Project.MarkerColor = safe; OnPropertyChanged(); MarkModified(); } }
+    public string MarkerShape { get => MarkerShapes.Normalize(Project.MarkerShape); set { var safe = MarkerShapes.Normalize(value); if (Project.MarkerShape == safe) return; Project.MarkerShape = safe; OnPropertyChanged(); MarkModified(); } }
 
     public ICommand NewCommand { get; }
     public ICommand OpenCommand { get; }
@@ -127,6 +133,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ICommand InsertAboveCommand { get; }
     public ICommand InsertBelowCommand { get; }
     public ICommand AddActionCommand { get; }
+    public ICommand ManageFunctionsCommand { get; }
 
     public void MoveAction(int oldIndex, int newIndex)
     {
@@ -266,7 +273,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (Project.Target is null) return;
         IsRunning = true;
         IsPaused = false;
-        try { await _runner.RunAsync(Project.Target, Actions.ToList(), CreateRunOptions()); }
+        try { await _runner.RunAsync(Project.Target, WorkflowFunctionExpander.Expand(Actions, Functions), CreateRunOptions()); }
         catch (Exception ex) { _dialogs.Error(LocalizationService.Language == "vi" ? "Đã dừng quy trình" : "Workflow stopped", ex.Message); StatusText = LocalizationService.Language == "vi" ? "Quy trình thất bại" : "Workflow failed"; }
         finally { IsRunning = false; IsPaused = false; }
     }
@@ -285,12 +292,30 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void AddAction(string type, bool? above)
     {
-        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "Drag" => new BackgroundAutomationStudio.Models.DragAction(), "Scroll" => new ScrollAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), "KeyHold" => new KeyHoldAction(), _ => new WaitAction() };
-        var edited = _dialogs.EditAction(action, Project.Target, true); if (edited is null) return;
+        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "Drag" => new BackgroundAutomationStudio.Models.DragAction(), "Scroll" => new ScrollAction(), "MovePointer" => new MovePointerAction(), "CallFunction" => new CallFunctionAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), "KeyHold" => new KeyHoldAction(), _ => new WaitAction() };
+        if (action is CallFunctionAction && Functions.Count == 0)
+        {
+            StatusText = LocalizationService.Language == "vi" ? "Hãy tạo ít nhất một hàm dùng lại trước khi thêm bước CALL" : "Create at least one reusable function before adding a CALL step";
+            if (!ManageFunctions() || Functions.Count == 0) return;
+        }
+        var edited = _dialogs.EditAction(action, Project.Target, Functions, true); if (edited is null) return;
         var index = above is null || SelectedAction is null ? Actions.Count : Actions.IndexOf(SelectedAction) + (above.Value ? 0 : 1); Actions.Insert(index, edited); SelectedAction = edited;
     }
 
-    private void EditSelected() { if (SelectedAction is null) return; var edited = _dialogs.EditAction(SelectedAction, Project.Target); if (edited is null) return; var index = Actions.IndexOf(SelectedAction); Actions[index] = edited; SelectedAction = edited; }
+    private void EditSelected() { if (SelectedAction is null) return; var edited = _dialogs.EditAction(SelectedAction, Project.Target, Functions); if (edited is null) return; var index = Actions.IndexOf(SelectedAction); Actions[index] = edited; SelectedAction = edited; }
+    private bool ManageFunctions()
+    {
+        var edited = _dialogs.ManageFunctions(Functions, Actions); if (edited is null) return false;
+        Project.Functions = new(edited.Select(item => item.Clone())); OnPropertyChanged(nameof(Functions));
+        foreach (var call in Actions.OfType<CallFunctionAction>())
+        {
+            var match = Functions.FirstOrDefault(item => item.Id == call.FunctionId) ?? Functions.FirstOrDefault(item => item.Name.Equals(call.FunctionName, StringComparison.OrdinalIgnoreCase));
+            if (match is not null) { call.FunctionId = match.Id; call.FunctionName = match.Name; }
+        }
+        MarkModified(); SyncScriptFromVisual(); CaptureWorkflowHistory(); RaiseCommandStates();
+        StatusText = LocalizationService.Language == "vi" ? $"Đã cập nhật {Functions.Count} hàm dùng lại" : $"Updated {Functions.Count} reusable function(s)";
+        return true;
+    }
     private void DeleteSelected() { if (SelectedAction is null) return; var index = Actions.IndexOf(SelectedAction); Actions.Remove(SelectedAction); SelectedAction = Actions.Count == 0 ? null : Actions[Math.Min(index, Actions.Count - 1)]; }
     private void ClearAll()
     {
@@ -349,7 +374,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void MarkModified() { if (!_syncingScript) IsModified = true; }
     private void CaptureWorkflowHistory() { if (!_suspendWorkflowHistory && _workflowHistory.Capture(Actions)) RaiseCommandStates(); }
     private void RunnerOnCurrentActionChanged(object? sender, AutomationAction? current) => Application.Current.Dispatcher.Invoke(() => { foreach (var action in Actions) action.IsCurrent = action.Id == current?.Id; });
-    private void NotifyScheduleChanged() { OnPropertyChanged(nameof(RepeatMode)); OnPropertyChanged(nameof(RepeatCount)); OnPropertyChanged(nameof(RepeatDurationMinutes)); OnPropertyChanged(nameof(StopAtTime)); }
-    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, UndoCommand, RedoCommand, DuplicateCommand, CopyCommand, CutCommand, PasteCommand, ToggleEnabledCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
+    private void NotifyScheduleChanged() { OnPropertyChanged(nameof(RepeatMode)); OnPropertyChanged(nameof(RepeatCount)); OnPropertyChanged(nameof(RepeatDurationMinutes)); OnPropertyChanged(nameof(StopAtTime)); OnPropertyChanged(nameof(ShowCoordinateMap)); OnPropertyChanged(nameof(ShowCoordinateGrid)); OnPropertyChanged(nameof(MarkerColor)); OnPropertyChanged(nameof(MarkerShape)); OnPropertyChanged(nameof(Functions)); }
+    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, UndoCommand, RedoCommand, DuplicateCommand, CopyCommand, CutCommand, PasteCommand, ToggleEnabledCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand, ManageFunctionsCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
     public void Dispose() { _recordTimer.Stop(); _recorder.Dispose(); _runner.Stop(); if (_runner is IDisposable disposable) disposable.Dispose(); _windowPicker.Dispose(); }
 }

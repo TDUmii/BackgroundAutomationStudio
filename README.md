@@ -1,133 +1,87 @@
 # Background Automation Studio
 
-Background Automation Studio is a Windows 10/11 desktop application for recording, inspecting, editing, saving, and replaying automation workflows against one selected application window. Desktop engines preserve the physical pointer and foreground focus; the opt-in Game Macro engine uses the normal Windows input stream for compatibility and pauses safely when the game loses focus.
+Build repeatable Windows workflows around a selected target window while keeping your own desktop usable. Background Automation Studio combines focus-safe playback, client-relative coordinates, a visual editor, a concise DSL, and explicit compatibility modes in one local-first tool.
 
 ## Download for Windows
 
-Download the ready-to-run, self-contained Windows x64 application:
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.3.0/BackgroundAutomationStudio.exe)**
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.2.0/BackgroundAutomationStudio.exe)**
+The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.3.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.3.0).
 
-No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v2.2.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.2.0).
+## What makes it different
 
-## Features
+| Capability | Background Automation Studio |
+| --- | --- |
+| Focus ownership | Background engines target one window without taking over the pointer or foreground focus. |
+| Stable placement | Pointer steps use client coordinates, so moving the target window does not invalidate the workflow. |
+| Honest compatibility | Five clearly named engines expose the focus, pointer, and raw-input tradeoffs before you run. |
+| Two editing styles | The visual timeline and readable DSL always represent the same workflow. |
+| Reuse without clutter | Named functions turn repeated sequences into a single `CALL` step and support safe nesting. |
+| Spatial overview | Coordinate Map shows every current pointer point, optional grid lines, hover coordinates, and customizable markers. |
+| Local-first | Projects are ordinary JSON files. There are no accounts, telemetry, cloud services, or background agents. |
 
-- Select and re-resolve one visible target window, then capture its client layout as recording metadata.
-- Record explicit clicks, wheel scrolling, and keyboard actions while ignoring pointer movement and actions on other windows.
-- Edit, reorder, copy, cut, paste, duplicate, enable, skip, and delete actions in the visual editor or the built-in DSL.
-- Add an optional inline note to any action. Notes are preserved in project JSON and as readable `# NOTE` lines in the DSL.
-- Use workflow-list shortcuts: `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, `Ctrl+D`, `Space`, `Delete`, `Enter`, and `Alt+Up/Down`.
-- Undo and redo workflow edits from buttons, the Edit menu, `Ctrl+Z`, `Ctrl+Y`, or `Ctrl+Shift+Z`.
-- Run, pause, resume, stop, highlight the current action, and choose a fixed repeat count, infinite run, duration timer, or clock stop time.
-- Clear the complete workflow with one confirmed action.
-- Replay Windows Calculator controls through focus-safe semantic keyboard messages without activating Calculator or resetting another app's IME composition.
-- Choose Strict background, Modern controls (may take focus), or Classic Win32 messages in Settings.
-- Choose Game Macro - foreground for games that require real Windows input. Switching to another app releases held input and auto-pauses without forcing the game back to the front.
-- Try Background Engine v2 - experimental for target-local control resolution, improved Win32 key/pointer messages, and synthetic focus messages without foreground activation. Raw-input games may still ignore them.
-- Record and edit held keys, pointer drags, and wheel scrolling in either visual or script form (`HOLD`, `DRAG`, and `SCROLL`). Game recording recognizes key holds of at least 150 ms and pointer drags beyond the Windows drag threshold.
-- Configure separate global Run/Emergency Stop and Pause/Resume shortcuts, defaulting to `Ctrl+Shift+F9` and `Ctrl+Shift+F10`.
-- Run up to 1,000,000 repeats, indefinitely, for a duration, or until a clock time.
-- See diagnostic playback status for the engine used, fallback behavior, minimized-target restoration, and actionable compatibility errors.
-- Keep using the physical mouse and keyboard in desktop modes. Those engines never call `SetCursorPos` or `SendInput`.
-- Keep the target covered, type in another application, or drag a visible target to a new position while playback continues. Client coordinates are resolved again for every action.
-- Switch the interface between English and Vietnamese. English is the first-run default.
-- Open Settings reliably, scroll through every playback mode, select the final mode, and reopen directly at the saved selection.
-- Use the unified dark title bar for dragging, resizing, minimizing, maximizing, restoring, and closing without a mismatched white Windows strip.
-- Pin or unpin the studio above other windows from the title bar. The preference is remembered for the next launch.
-- Navigate line-free menus whose active underline expands gently from the center for clear hover, keyboard-focus, and open-menu feedback.
-- Use Run/Stop as an emergency stop. The runner releases any injected held key or mouse button when stopped, cancelled, paused, or interrupted.
-- Save projects as local JSON. Language, hotkey, and playback compatibility are stored in the current Windows user's local application-data folder.
+## Key features
 
-## Background playback compatibility
+- Record clicks, right clicks, double clicks, wheel scrolling, text, key presses, held keys, and drags from the selected target only.
+- Add precise click, drag, scroll, wait, key, text, pointer-move, and function-call steps manually.
+- Inspect all pointer points together with Coordinate Map; toggle its grid and choose blue, red, green, amber, or purple pin, diamond, or crosshair markers.
+- Create reusable functions from the same DSL, call them from any workflow position, nest them, and receive a clear error for missing or circular calls.
+- Edit, reorder, annotate, copy, cut, paste, duplicate, skip, delete, undo, and redo workflow steps.
+- Run a fixed count, continuously until stopped, for a duration, or until a clock time.
+- Configure independent global Run/Emergency Stop and Pause/Resume shortcuts.
+- Keep the target covered or move it while compatible background playback continues.
+- Switch the complete interface between English and Vietnamese; English is the default.
+- Save and reopen portable local project files.
 
-Strict background mode, the default, searches the selected target's UI Automation tree only to identify the smallest actionable element at the recorded client coordinate. It never calls a provider's focus-taking `Invoke` pattern. Supported semantic controls, including standard Windows Calculator buttons, are translated to targeted background keyboard messages; other controls fall back to ordinary Win32 background messages.
+## Playback modes
 
-Modern-controls mode is an explicit compatibility option for controls without a strict-background adapter. It may call UI Automation `Invoke`, `Toggle`, `SelectionItem`, or `ExpandCollapse`; provider behavior is outside the studio's control and may take foreground focus or reset IME composition. Classic mode sends pointer actions as Win32 messages. Background Engine v2 resolves the recipient through the selected target's own child-window tree, so a covering window cannot redirect a recorded click to itself. Keyboard and right-click actions use classic background messages in every mode.
+| Mode | Use it when | Behavior and limit |
+| --- | --- | --- |
+| **Strict background** | The target uses standard controls and your focus must remain untouched. | Sends semantic or Win32 input without activating the target. This is the recommended default. |
+| **Modern controls** | A custom modern control does not respond to strict background delivery. | Adds UI Automation compatibility, but the target may activate and interrupt typing or IME composition. |
+| **Classic Win32 messages** | The target uses legacy desktop controls. | Sends direct window messages while leaving your pointer and focus free. Unsupported custom controls may ignore them. |
+| **Foreground input** | Maximum compatibility matters more than background use. | Uses the normal Windows input stream, requires the target in front, and may move the physical pointer. It auto-pauses on focus loss. |
+| **Background Engine v2** | You want to try covered-window delivery for a target that accepts window messages. | Resolves child controls and sends synthetic focus messages without activation. Raw-input software may ignore every action. |
 
-Strict background and Classic modes do not activate the target or move the physical cursor. During playback, an activation shield temporarily prevents ordinary activation and a continuous guard protects against unexpected target-family foreground changes. The original window style is always restored when playback stops, is cancelled, or fails. Minimized targets are shown without activation; a normal target may remain covered while the user selects, types, and uses an IME in another application. A fully hidden window must be shown first.
+No mode injects code, modifies memory or network traffic, installs a driver, creates a second hardware cursor, bypasses elevation, or bypasses security and service rules.
 
-Playback no longer forces the target back to its recorded desktop position or size. Coordinates remain client-relative and are converted against the target's current position for every action, so moving a visible target does not break the running workflow.
+## Workflow commands
 
-Games, elevated applications when the studio is not elevated, custom browser or canvas surfaces, raw-input software, and anti-cheat software may still ignore both mechanisms. The application does not use process injection, drivers, virtual HID devices, elevation bypasses, or anti-cheat bypasses.
+The visual editor and DSL are interchangeable. Available commands are `CLICK`, `RIGHT_CLICK`, `DOUBLE_CLICK`, `DRAG`, `SCROLL`, `MOVE`, `TYPE`, `KEY`, `HOLD`, `WAIT`, and `CALL`. Add `# NOTE` before a step to keep an inline description.
 
-## Game Macro compatibility
-
-**Game Macro - foreground** converts clicks, text, key presses, held keys, drags, and wheel scrolling into ordinary `SendInput` events. It does not activate or raise the selected game. Before every action and throughout waits or held input, it verifies that the selected top-level window is still foreground. If the user changes apps, held keys/buttons are released and playback waits. Returning to the selected game resumes the remaining schedule automatically. Because Windows exposes no atomic "send only if this HWND is still foreground" operation, the single action already crossing the OS input boundary during an exact focus transition can be cancelled; later iterations resume and input is not redirected intentionally.
-
-**Background Engine v2 - experimental** uses targeted window messages and preserves the user's foreground window and pointer. It resolves pointer recipients entirely inside the selected target even when another window covers it, sends mouse movement before button messages, preserves extended/system-key flags, and maintains a synthetic focus state without foreground activation. It also verifies that a focused child belongs to the selected top-level target before posting keys. Acceptance cannot be detected from outside the target: Project Zomboid and other raw-input games may ignore every message while unfocused.
-
-Game Macro does not inject code, modify memory, alter packets, accelerate server-side actions, bypass anti-cheat, or create a separate hardware cursor. Use automation only where the game and server rules permit it. In multiplayer, the server remains authoritative and an administrator may treat macros as prohibited automation even when every action uses normal timing.
-
-Recording remains an explicit, user-initiated observation of real actions in the selected target window. The non-interference guarantee applies to playback.
+```text
+MOVE 240 180
+CLICK 240 180
+CALL "Confirm sequence"
+WAIT 500
+```
 
 ## Requirements
 
 - Windows 10 or Windows 11, x64.
-- .NET 8 SDK for building from source.
-- No Python, database, cloud account, browser extension, or background service is required.
-
-## Build and test
+- The downloadable executable has no external runtime dependency.
+- Building from source requires the .NET 8 SDK.
 
 ```powershell
-dotnet restore .\BackgroundAutomationStudio.sln
-dotnet build .\BackgroundAutomationStudio.sln -c Release --no-restore
-dotnet test .\BackgroundAutomationStudio.sln -c Release --no-build
+dotnet build .\BackgroundAutomationStudio.sln -c Release
+dotnet test .\BackgroundAutomationStudio.sln -c Release
 dotnet run --project .\BackgroundAutomationStudio\BackgroundAutomationStudio.csproj -c Release
 ```
 
-To create a self-contained, single-file Windows build:
+## Compatibility boundaries
 
-```powershell
-dotnet publish .\BackgroundAutomationStudio\BackgroundAutomationStudio.csproj `
-  -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true `
-  -p:IncludeNativeLibrariesForSelfExtract=true `
-  -o .\artifacts\BackgroundAutomationStudio-win-x64
-```
-
-## Workflow script
-
-The visual editor and script editor operate on the same workflow. Supported commands are:
-
-```text
-CLICK 200 150
-RIGHT_CLICK 220 180
-DOUBLE_CLICK 300 240
-TYPE "Hello World"
-KEY ENTER
-HOLD E 1500
-DRAG 200 150 500 350 800
-# NOTE Scroll the inventory list
-SCROLL 500 350 -360
-WAIT 500
-```
-
-Invalid commands are reported with line-specific errors and cannot be run until corrected.
+- A target can ignore background messages when it requires foreground, raw, injected, or hardware input.
+- Foreground input shares the physical desktop pointer and keyboard stream; Windows does not provide an isolated second cursor for ordinary applications.
+- Minimized targets are restored before playback; fully hidden targets are not automated.
+- The selected target must run at an equal or lower Windows integrity level.
+- Moving the target is supported. Resizing it or changing its internal layout can move controls away from recorded client coordinates.
+- Use automation only where the target software and service rules permit it.
 
 ## Privacy and security
 
 - Workflows and settings stay on the local computer.
-- Project files are ordinary JSON saved to a location chosen by the user.
-- The application contains no telemetry, analytics, account system, cloud synchronization, network client, process injection, driver, or anti-cheat bypass.
-- Low-level input hooks are installed only during an explicit recording session and are removed when recording stops, is cancelled, or the application exits.
-- Do not automate passwords, recovery codes, payment data, or other sensitive text in workflows you plan to share.
+- Project files are readable JSON saved wherever you choose.
+- Recording hooks exist only during an explicit recording session and are removed when recording stops, is cancelled, or the studio exits.
+- Avoid storing sensitive text in workflows you intend to share.
 
-## Project structure
-
-- `BackgroundAutomationStudio/Models` - project, target, settings, and action models.
-- `BackgroundAutomationStudio/Services` - recorder, hybrid background runner, localization, settings, hotkey, window, script, project, and dialog services.
-- `BackgroundAutomationStudio/ViewModels` - main application state and commands.
-- `BackgroundAutomationStudio/Views` - action editor, settings, and coordinate marker windows.
-- `BackgroundAutomationStudio/Native` - bounded Win32 interop.
-- `BackgroundAutomationStudio.Tests` - parser, model, persistence, run-schedule, hotkey, and settings tests.
-
-## Known limitations
-
-- Strict semantic playback depends on recognizable controls and targeted background messages supported by the target application.
-- The opt-in Modern controls mode can still take focus because UI Automation provider behavior belongs to the target application.
-- Win32 and experimental game-background messages can be ignored by applications that require foreground, raw, injected, or hardware input.
-- Foreground Game Macro uses the physical desktop pointer and active input stream. It auto-pauses on focus loss, but it cannot create an isolated second Windows cursor.
-- A single atomic foreground action that is already crossing the Windows input boundary at the exact moment focus changes may be cancelled; playback resumes from the following boundary after the game is active again.
-- Minimized targets are restored before playback; fully hidden targets are not automated.
-- The selected target must run at an equal or lower Windows integrity level. If the target runs as Administrator, run the studio at the same level.
-- Coordinate actions are client-relative. Moving the target is supported, but resizing it or changing its responsive layout can move controls away from their recorded client coordinates.
+Security reports should follow [SECURITY.md](SECURITY.md).

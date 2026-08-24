@@ -9,6 +9,8 @@ public sealed partial class ScriptParser
 {
     [GeneratedRegex("^TYPE\\s+\"((?:\\\\.|[^\"\\\\])*)\"$", RegexOptions.IgnoreCase)]
     private static partial Regex TypeRegex();
+    [GeneratedRegex("^CALL\\s+\"((?:\\\\.|[^\"\\\\])*)\"$", RegexOptions.IgnoreCase)]
+    private static partial Regex CallRegex();
 
     public ScriptParseResult Parse(string? script)
     {
@@ -40,6 +42,8 @@ public sealed partial class ScriptParser
                 "HOLD" => ParseHold(args, i + 1, result),
                 "DRAG" => ParseDrag(args, i + 1, result),
                 "SCROLL" => ParseScroll(args, i + 1, result),
+                "MOVE" => ParsePoint<MovePointerAction>(args, i + 1, result),
+                "CALL" => ParseCall(raw, i + 1, result),
                 "TYPE" => ParseType(raw, i + 1, result),
                 _ => AddUnknown(command, i + 1, result)
             };
@@ -65,6 +69,8 @@ public sealed partial class ScriptParser
                 KeyHoldAction a => $"HOLD {a.KeyName.ToUpperInvariant()} {a.Milliseconds}",
                 DragAction a => $"DRAG {a.StartX} {a.StartY} {a.EndX} {a.EndY} {a.Milliseconds}",
                 ScrollAction a => $"SCROLL {a.ClientX} {a.ClientY} {a.Delta}",
+                MovePointerAction a => $"MOVE {a.ClientX} {a.ClientY}",
+                CallFunctionAction a => $"CALL \"{Escape(a.FunctionName)}\"",
                 WaitAction a => $"WAIT {a.Milliseconds}",
                 _ => throw new InvalidOperationException($"Unsupported action {action.GetType().Name}.")
             };
@@ -79,6 +85,12 @@ public sealed partial class ScriptParser
         if (parts.Length != 2) { result.Errors.Add(new(line, "Expected X and Y coordinates")); return null; }
         if (!int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x)) { result.Errors.Add(new(line, "X must be a number")); return null; }
         if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var y)) { result.Errors.Add(new(line, "Y must be a number")); return null; }
+        if (x < 0 || y < 0)
+        {
+            var label = typeof(T) == typeof(MovePointerAction) ? "Move" : "Pointer";
+            result.Errors.Add(new(line, $"{label} coordinates cannot be negative"));
+            return null;
+        }
         return new T { ClientX = x, ClientY = y };
     }
 
@@ -136,6 +148,19 @@ public sealed partial class ScriptParser
         var match = TypeRegex().Match(raw);
         if (!match.Success) { result.Errors.Add(new(line, "Text must be enclosed in double quotes")); return null; }
         try { return new TypeTextAction { Text = Unescape(match.Groups[1].Value) }; }
+        catch (FormatException ex) { result.Errors.Add(new(line, ex.Message)); return null; }
+    }
+
+    private static AutomationAction? ParseCall(string raw, int line, ScriptParseResult result)
+    {
+        var match = CallRegex().Match(raw);
+        if (!match.Success) { result.Errors.Add(new(line, "Function name must be enclosed in double quotes")); return null; }
+        try
+        {
+            var name = Unescape(match.Groups[1].Value).Trim();
+            if (string.IsNullOrWhiteSpace(name)) { result.Errors.Add(new(line, "Function name is required")); return null; }
+            return new CallFunctionAction { FunctionName = name };
+        }
         catch (FormatException ex) { result.Errors.Add(new(line, ex.Message)); return null; }
     }
 

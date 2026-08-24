@@ -38,6 +38,17 @@ public sealed class ProjectService
             ?? throw new InvalidDataException("The project file is empty or invalid.");
         if (project.Version != 1) throw new InvalidDataException($"Project version {project.Version} is not supported by Version 1.");
         project.Actions ??= [];
+        project.Functions ??= [];
+        var functionIds = new HashSet<Guid>();
+        for (var index = 0; index < project.Functions.Count; index++)
+        {
+            var function = project.Functions[index];
+            if (function.Id == Guid.Empty || !functionIds.Add(function.Id)) { function.Id = Guid.NewGuid(); functionIds.Add(function.Id); }
+            if (string.IsNullOrWhiteSpace(function.Name)) function.Name = $"Function {index + 1}";
+            function.Actions ??= [];
+        }
+        project.MarkerShape = MarkerShapes.Normalize(project.MarkerShape);
+        if (!System.Text.RegularExpressions.Regex.IsMatch(project.MarkerColor ?? string.Empty, "^#[0-9A-Fa-f]{6}$")) project.MarkerColor = "#74A7FF";
         project.RepeatMode = RepeatModes.Normalize(project.RepeatMode);
         project.RepeatCount = Math.Clamp(project.RepeatCount, 1, 1_000_000);
         project.RepeatDurationMinutes = Math.Clamp(project.RepeatDurationMinutes, 1, 10080);

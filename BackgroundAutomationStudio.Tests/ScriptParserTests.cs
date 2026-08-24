@@ -102,4 +102,32 @@ public sealed class ScriptParserTests
         Assert.False(result.IsValid);
         Assert.Equal(expected, result.Errors.Single().ToString());
     }
+
+    [Fact]
+    public void MoveAndCall_RoundTripThroughDsl()
+    {
+        AutomationAction[] actions =
+        [
+            new MovePointerAction { ClientX = 420, ClientY = 260, Note = "Position before the next step" },
+            new CallFunctionAction { FunctionName = "Open panel" }
+        ];
+
+        var script = _parser.Serialize(actions);
+        Assert.Equal("# NOTE Position before the next step\r\nMOVE 420 260\r\nCALL \"Open panel\"", script);
+        var parsed = _parser.Parse(script);
+        Assert.True(parsed.IsValid);
+        var move = Assert.IsType<MovePointerAction>(parsed.Actions[0]);
+        Assert.Equal((420, 260), (move.ClientX, move.ClientY));
+        Assert.Equal("Open panel", Assert.IsType<CallFunctionAction>(parsed.Actions[1]).FunctionName);
+    }
+
+    [Theory]
+    [InlineData("MOVE -1 20", "Line 1: Move coordinates cannot be negative")]
+    [InlineData("CALL panel", "Line 1: Function name must be enclosed in double quotes")]
+    public void Parse_InvalidWorkspaceCommands_ReturnsSpecificError(string script, string expected)
+    {
+        var result = _parser.Parse(script);
+        Assert.False(result.IsValid);
+        Assert.Equal(expected, result.Errors.Single().ToString());
+    }
 }

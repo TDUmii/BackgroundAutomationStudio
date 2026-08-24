@@ -11,7 +11,8 @@ public interface IDialogService
     string? OpenProject();
     string? SaveProject(string suggestedName);
     RecordChoice ChooseRecordMode();
-    AutomationAction? EditAction(AutomationAction action, WindowTarget? target, bool isNew = false);
+    AutomationAction? EditAction(AutomationAction action, WindowTarget? target, IEnumerable<AutomationFunction>? functions = null, bool isNew = false);
+    IReadOnlyList<AutomationFunction>? ManageFunctions(IEnumerable<AutomationFunction> functions, IEnumerable<AutomationAction> workflowActions);
     void Info(string title, string message);
     void Error(string title, string message);
 }
@@ -39,12 +40,22 @@ public sealed class DialogService(WindowPickerService picker, IWindowManager win
         _ => RecordChoice.Cancel
     };
 
-    public AutomationAction? EditAction(AutomationAction action, WindowTarget? target, bool isNew = false)
+    public AutomationAction? EditAction(AutomationAction action, WindowTarget? target, IEnumerable<AutomationFunction>? functions = null, bool isNew = false)
     {
         var clone = action.Clone();
-        var type = clone.ActionType switch { "Click" => LocalizationService.Get("Click"), "Right click" => LocalizationService.Get("RightClick"), "Double click" => LocalizationService.Get("DoubleClick"), "Drag" => LocalizationService.Get("Drag"), "Scroll" => LocalizationService.Get("Scroll"), "Type text" => LocalizationService.Get("TypeText"), "Key press" => LocalizationService.Get("KeyPress"), "Hold key" => LocalizationService.Get("KeyHold"), _ => LocalizationService.Get("Wait") };
+        var available = functions?.ToList() ?? [];
+        if (clone is CallFunctionAction call) { call.AvailableFunctions = available; if (call.FunctionId == Guid.Empty && available.Count > 0) { call.FunctionId = available[0].Id; call.FunctionName = available[0].Name; } }
+        var type = clone.ActionType switch { "Click" => LocalizationService.Get("Click"), "Right click" => LocalizationService.Get("RightClick"), "Double click" => LocalizationService.Get("DoubleClick"), "Drag" => LocalizationService.Get("Drag"), "Scroll" => LocalizationService.Get("Scroll"), "Move Pointer" => LocalizationService.Get("MovePointer"), "Call Function" => LocalizationService.Get("CallFunction"), "Type text" => LocalizationService.Get("TypeText"), "Key press" => LocalizationService.Get("KeyPress"), "Hold key" => LocalizationService.Get("KeyHold"), _ => LocalizationService.Get("Wait") };
         var dialog = new ActionEditorWindow(clone, target, picker, windowManager) { Owner = Application.Current.MainWindow, Title = $"{LocalizationService.Get(isNew ? "Add" : "Edit")} {type}" };
-        return dialog.ShowDialog() == true ? dialog.Action : null;
+        if (dialog.ShowDialog() != true) return null;
+        if (dialog.Action is CallFunctionAction editedCall) editedCall.FunctionName = available.FirstOrDefault(item => item.Id == editedCall.FunctionId)?.Name ?? editedCall.FunctionName;
+        return dialog.Action;
+    }
+
+    public IReadOnlyList<AutomationFunction>? ManageFunctions(IEnumerable<AutomationFunction> functions, IEnumerable<AutomationAction> workflowActions)
+    {
+        var dialog = new FunctionsWindow(functions, workflowActions) { Owner = Application.Current.MainWindow };
+        return dialog.ShowDialog() == true ? dialog.Result : null;
     }
 
     public void Info(string title, string message) => MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Information);
