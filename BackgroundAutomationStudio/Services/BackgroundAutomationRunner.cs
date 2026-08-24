@@ -42,6 +42,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             _ => (DateTimeOffset?)null
         };
         var playbackMode = PlaybackModes.Normalize(_playbackModeProvider());
+        var engineLabel = $"{LocalizationService.Get("EngineActive")} {PlaybackModes.GetIndex(playbackMode)} · {LocalizationService.Get(PlaybackModes.GetResourceKey(playbackMode))}";
         var gameForeground = playbackMode == PlaybackModes.GameForeground;
         var gameBackground = playbackMode == PlaybackModes.GameBackground;
         _runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -92,7 +93,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                     if (deadline is { } beforeAction && DateTimeOffset.Now >= beforeAction) { stoppedBySchedule = true; break; }
                     CurrentActionChanged?.Invoke(this, action);
                     var iterationLabel = repeatMode == RepeatModes.Count ? $"{iteration}/{repeatCount}" : $"{iteration}/∞";
-                    StatusChanged?.Invoke(this, L($"Run {iterationLabel} - {action.ActionType}", $"Lần chạy {iterationLabel} - {action.ActionType}"));
+                    StatusChanged?.Invoke(this, L($"{engineLabel} — Run {iterationLabel} - {action.ActionType}", $"{engineLabel} — Lần chạy {iterationLabel} - {action.ActionType}"));
                     if (action.DelayBefore > 0) await DelayWithPauseAsync(action.DelayBefore, waitUntilReady, token);
                     syntheticFocus?.Refresh();
                     if (action is WaitAction wait)

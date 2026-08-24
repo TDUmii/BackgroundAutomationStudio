@@ -39,6 +39,7 @@ public static class NativeMethods
     public const int SwRestore = 9;
     public const int SwShowNoActivate = 4;
     public const int GwlExStyle = -20;
+    public const int GwlHwndParent = -8;
     public const long WsExToolWindow = 0x00000080L;
     public const long WsExTransparent = 0x00000020L;
     public const long WsExNoActivate = 0x08000000L;
@@ -83,6 +84,8 @@ public static class NativeMethods
     public static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out POINT point);
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool PostMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")]

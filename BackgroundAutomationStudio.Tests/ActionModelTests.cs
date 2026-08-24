@@ -65,6 +65,18 @@ public sealed class ActionModelTests
     public void PlaybackMode_NormalizesPersistedSettings(string? value, string expected) =>
         Assert.Equal(expected, PlaybackModes.Normalize(value));
 
+    [Theory]
+    [InlineData(PlaybackModes.Automatic, 1, "AutomaticModeName")]
+    [InlineData(PlaybackModes.GameForeground, 2, "GameForegroundModeName")]
+    [InlineData(PlaybackModes.GameBackground, 3, "GameBackgroundModeName")]
+    [InlineData(PlaybackModes.UiAutomation, 4, "UiAutomationModeName")]
+    [InlineData(PlaybackModes.Win32Messages, 5, "Win32ModeName")]
+    public void PlaybackMode_MapsToStableVisibleEngineIdentity(string mode, int index, string resourceKey)
+    {
+        Assert.Equal(index, PlaybackModes.GetIndex(mode));
+        Assert.Equal(resourceKey, PlaybackModes.GetResourceKey(mode));
+    }
+
     [Fact]
     public void GameInputChord_ResolvesModifiersInPressedOrder()
     {

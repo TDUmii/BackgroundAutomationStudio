@@ -70,6 +70,19 @@ public sealed class ScriptParserTests
         Assert.Equal("HOLD SHIFT+E 1250\r\nDRAG 10 20 300 400 900", _parser.Serialize(result.Actions));
     }
 
+    [Fact]
+    public void Parse_RepeatedRightClickGameWorkflow_PreservesEveryStep()
+    {
+        const string script = "RIGHT_CLICK 557 983\nWAIT 731\nRIGHT_CLICK 597 980\nWAIT 1123\nRIGHT_CLICK 615 990\nWAIT 804\nRIGHT_CLICK 557 982\nWAIT 607\nRIGHT_CLICK 608 984\nWAIT 550\nRIGHT_CLICK 569 985\nWAIT 671\nRIGHT_CLICK 620 979\nWAIT 515\nRIGHT_CLICK 546 981\nWAIT 536\nRIGHT_CLICK 600 980";
+        var result = _parser.Parse(script);
+        Assert.True(result.IsValid);
+        Assert.Equal(17, result.Actions.Count);
+        Assert.Equal(9, result.Actions.OfType<RightClickAction>().Count());
+        Assert.Equal(8, result.Actions.OfType<WaitAction>().Count());
+        var last = Assert.IsType<RightClickAction>(result.Actions[^1]);
+        Assert.Equal((600, 980), (last.ClientX, last.ClientY));
+    }
+
     [Theory]
     [InlineData("HOLD E 0", "Line 1: Hold duration must be a positive number")]
     [InlineData("DRAG 0 0 10 10 0", "Line 1: Drag duration must be positive")]

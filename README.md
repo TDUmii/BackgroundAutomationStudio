@@ -4,9 +4,9 @@ Build repeatable Windows workflows around a selected target window while keeping
 
 ## Download for Windows
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.3.1/BackgroundAutomationStudio.exe)**
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.3.2/BackgroundAutomationStudio.exe)**
 
-The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.3.1 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.3.1).
+The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.3.2 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.3.2).
 
 ## What makes it different
 
@@ -24,7 +24,8 @@ The release is a self-contained Windows x64 executable; no separate .NET install
 
 - Record clicks, right clicks, double clicks, wheel scrolling, text, key presses, held keys, and drags from the selected target only.
 - Add precise click, drag, scroll, wait, key, text, pointer-move, and function-call steps manually.
-- Inspect points directly on the target with the Screen Grid overlay; toggle grid lines and choose blue, red, green, amber, or purple pin, diamond, or crosshair markers.
+- Inspect points directly on the target with the Screen Grid overlay, including an `X | Y` label beside the live pointer; the target-owned overlay stays above topmost or borderless-style targets while they are foreground.
+- Toggle grid lines and choose blue, red, green, amber, or purple pin, diamond, or crosshair markers.
 - Create reusable functions from the same DSL, call them from any workflow position, nest them, and receive a clear error for missing or circular calls.
 - Edit, reorder, annotate, copy, cut, paste, duplicate, skip, delete, undo, and redo workflow steps.
 - Run a fixed count, continuously until stopped, for a duration, or until a clock time.
@@ -37,11 +38,11 @@ The release is a self-contained Windows x64 executable; no separate .NET install
 
 | Mode | Use it when | Behavior and limit |
 | --- | --- | --- |
-| **Strict background** | The target uses standard controls and your focus must remain untouched. | Sends semantic or Win32 input without activating the target. This is the recommended default. |
-| **Modern controls** | A custom modern control does not respond to strict background delivery. | Adds UI Automation compatibility, but the target may activate and interrupt typing or IME composition. |
-| **Classic Win32 messages** | The target uses legacy desktop controls. | Sends direct window messages while leaving your pointer and focus free. Unsupported custom controls may ignore them. |
-| **Foreground input** | Maximum compatibility matters more than background use. | Uses the normal Windows input stream, requires the target in front, and may move the physical pointer. It auto-pauses on focus loss. |
-| **Background Engine v2** | You want to try covered-window delivery for a target that accepts window messages. | Resolves child controls and sends synthetic focus messages without activation. Raw-input software may ignore every action. |
+| **1 — Strict background** | The target uses standard controls and your focus must remain untouched. | Sends semantic or Win32 input without activating the target. Raw-input games normally ignore this mode. |
+| **2 — Foreground input** | Maximum game compatibility matters more than background use. | Uses the normal Windows input stream, requires the target in front, and may move the physical pointer. Start through the global hotkey while the target is active, or switch to it after Run. |
+| **3 — Background Engine v2** | You want to try covered-window delivery for a target that accepts window messages. | Resolves child controls and sends synthetic focus messages without activation. Queued delivery is reported separately because raw-input software may ignore every action. |
+| **4 — Modern controls** | A custom modern control does not respond to strict background delivery. | Adds UI Automation compatibility, but the target may activate and interrupt typing or IME composition. |
+| **5 — Classic Win32 messages** | The target uses legacy desktop controls. | Sends direct window messages while leaving your pointer and focus free. Raw-input games normally ignore these messages. |
 
 No mode injects code, modifies memory or network traffic, installs a driver, creates a second hardware cursor, bypasses elevation, or bypasses security and service rules.
 

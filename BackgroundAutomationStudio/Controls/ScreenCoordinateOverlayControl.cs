@@ -17,6 +17,9 @@ public sealed class ScreenCoordinateOverlayControl : FrameworkElement
     public static readonly DependencyProperty ShowGridProperty = DependencyProperty.Register(nameof(ShowGrid), typeof(bool), typeof(ScreenCoordinateOverlayControl), new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty MarkerColorProperty = DependencyProperty.Register(nameof(MarkerColor), typeof(string), typeof(ScreenCoordinateOverlayControl), new FrameworkPropertyMetadata("#74A7FF", FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty MarkerShapeProperty = DependencyProperty.Register(nameof(MarkerShape), typeof(string), typeof(ScreenCoordinateOverlayControl), new FrameworkPropertyMetadata(MarkerShapes.Pin, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty CursorClientXProperty = DependencyProperty.Register(nameof(CursorClientX), typeof(int), typeof(ScreenCoordinateOverlayControl), new FrameworkPropertyMetadata(0, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty CursorClientYProperty = DependencyProperty.Register(nameof(CursorClientY), typeof(int), typeof(ScreenCoordinateOverlayControl), new FrameworkPropertyMetadata(0, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty ShowCursorCoordinateProperty = DependencyProperty.Register(nameof(ShowCursorCoordinate), typeof(bool), typeof(ScreenCoordinateOverlayControl), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public IEnumerable<AutomationAction>? Actions { get => (IEnumerable<AutomationAction>?)GetValue(ActionsProperty); set => SetValue(ActionsProperty, value); }
     public int ClientWidth { get => (int)GetValue(ClientWidthProperty); set => SetValue(ClientWidthProperty, value); }
@@ -24,6 +27,9 @@ public sealed class ScreenCoordinateOverlayControl : FrameworkElement
     public bool ShowGrid { get => (bool)GetValue(ShowGridProperty); set => SetValue(ShowGridProperty, value); }
     public string MarkerColor { get => (string)GetValue(MarkerColorProperty); set => SetValue(MarkerColorProperty, value); }
     public string MarkerShape { get => (string)GetValue(MarkerShapeProperty); set => SetValue(MarkerShapeProperty, value); }
+    public int CursorClientX { get => (int)GetValue(CursorClientXProperty); set => SetValue(CursorClientXProperty, value); }
+    public int CursorClientY { get => (int)GetValue(CursorClientYProperty); set => SetValue(CursorClientYProperty, value); }
+    public bool ShowCursorCoordinate { get => (bool)GetValue(ShowCursorCoordinateProperty); set => SetValue(ShowCursorCoordinateProperty, value); }
 
     private static void ActionsChanged(DependencyObject source, DependencyPropertyChangedEventArgs e) => ((ScreenCoordinateOverlayControl)source).ObserveActions(e.OldValue as IEnumerable<AutomationAction>, e.NewValue as IEnumerable<AutomationAction>);
     private void ObserveActions(IEnumerable<AutomationAction>? oldActions, IEnumerable<AutomationAction>? newActions)
@@ -51,6 +57,7 @@ public sealed class ScreenCoordinateOverlayControl : FrameworkElement
         if (ShowGrid) DrawGrid(drawing, bounds);
         drawing.DrawRectangle(null, new Pen(new SolidColorBrush(Color.FromArgb(190, 116, 167, 255)), 1.5), new Rect(.75, .75, Math.Max(0, ActualWidth - 1.5), Math.Max(0, ActualHeight - 1.5)));
         DrawMarkers(drawing, bounds);
+        if (ShowCursorCoordinate) DrawCursorCoordinate(drawing, bounds);
     }
 
     private void DrawGrid(DrawingContext drawing, Rect bounds)
@@ -102,6 +109,26 @@ public sealed class ScreenCoordinateOverlayControl : FrameworkElement
                     break;
             }
         }
+    }
+
+    private void DrawCursorCoordinate(DrawingContext drawing, Rect bounds)
+    {
+        var point = Map(bounds, CursorClientX, CursorClientY);
+        var text = MakeText($"{CursorClientX} | {CursorClientY}", Brushes.White, 11);
+        const double gap = 14;
+        const double paddingX = 7;
+        const double paddingY = 4;
+        var width = text.Width + paddingX * 2;
+        var height = text.Height + paddingY * 2;
+        var left = point.X + gap;
+        var top = point.Y + gap;
+        if (left + width > bounds.Right - 4) left = point.X - gap - width;
+        if (top + height > bounds.Bottom - 4) top = point.Y - gap - height;
+        left = Math.Clamp(left, bounds.Left + 4, Math.Max(bounds.Left + 4, bounds.Right - width - 4));
+        top = Math.Clamp(top, bounds.Top + 4, Math.Max(bounds.Top + 4, bounds.Bottom - height - 4));
+        var backplate = new Rect(left, top, width, height);
+        drawing.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(232, 12, 14, 17)), new Pen(new SolidColorBrush(Color.FromArgb(220, 116, 167, 255)), 1), backplate, 5, 5);
+        drawing.DrawText(text, new Point(left + paddingX, top + paddingY));
     }
 
     private void DrawMarker(DrawingContext drawing, Point point, int index, Brush fill, Pen outline)

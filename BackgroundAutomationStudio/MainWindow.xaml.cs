@@ -29,6 +29,7 @@ public partial class MainWindow : Window
         PinButton.ToolTip = LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow");
         AutomationProperties.SetName(PinButton, LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow"));
         UpdateHotkeyLabel();
+        UpdatePlaybackModeIndicator();
         _runHotkey.Pressed += (_, _) => Dispatcher.Invoke(viewModel.ToggleRunFromHotkey);
         _pauseHotkey.Pressed += (_, _) => Dispatcher.Invoke(viewModel.TogglePauseFromHotkey);
     }
@@ -130,6 +131,7 @@ public partial class MainWindow : Window
             LocalizationService.Apply(dialog.Result.Language);
             if (DataContext is MainViewModel vm) vm.RefreshLanguage();
             UpdateHotkeyLabel();
+            UpdatePlaybackModeIndicator();
             UpdateTitleBarTooltips();
         }
         finally
@@ -148,6 +150,12 @@ public partial class MainWindow : Window
     }
 
     private void UpdateHotkeyLabel() => HotkeyText.Text = $"{LocalizationService.Get("RunStopShort")}: {_settings.Current.RunHotkey}  ·  {LocalizationService.Get("PauseShort")}: {_settings.Current.PauseHotkey}";
+    private void UpdatePlaybackModeIndicator()
+    {
+        var mode = PlaybackModes.Normalize(_settings.Current.PlaybackMode);
+        PlaybackModeText.Text = $"{LocalizationService.Get("EngineActive")} {PlaybackModes.GetIndex(mode)} · {LocalizationService.Get(PlaybackModes.GetResourceKey(mode))}";
+        PlaybackModeText.ToolTip = LocalizationService.Get("PlaybackModeHelp");
+    }
     private void UpdateTitleBarTooltips()
     {
         PinButton.ToolTip = LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow");
