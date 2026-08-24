@@ -6,9 +6,9 @@ Background Automation Studio is a Windows 10/11 desktop application for recordin
 
 Download the ready-to-run, self-contained Windows x64 application:
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.0.0/BackgroundAutomationStudio.exe)**
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.1.0/BackgroundAutomationStudio.exe)**
 
-No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v2.0.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.0.0).
+No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v2.1.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.1.0).
 
 ## Features
 
@@ -30,6 +30,9 @@ No separate .NET installation is required. Release details and the SHA-256 check
 - Keep the target covered, type in another application, or drag a visible target to a new position while playback continues. Client coordinates are resolved again for every action.
 - Switch the interface between English and Vietnamese. English is the first-run default.
 - Open Settings reliably, scroll through every playback mode, select the final mode, and reopen directly at the saved selection.
+- Use the unified dark title bar for dragging, resizing, minimizing, maximizing, restoring, and closing without a mismatched white Windows strip.
+- Pin or unpin the studio above other windows from the title bar. The preference is remembered for the next launch.
+- Navigate line-free menus whose active underline expands gently from the center for clear hover, keyboard-focus, and open-menu feedback.
 - Use Run/Stop as an emergency stop. The runner releases any injected held key or mouse button when stopped, cancelled, paused, or interrupted.
 - Save projects as local JSON. Language, hotkey, and playback compatibility are stored in the current Windows user's local application-data folder.
 

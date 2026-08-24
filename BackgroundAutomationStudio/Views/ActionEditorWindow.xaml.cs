@@ -17,7 +17,7 @@ public partial class ActionEditorWindow : Window
     public AutomationAction Action { get; }
     public ActionEditorWindow(AutomationAction action, WindowTarget? target, WindowPickerService picker, IWindowManager windowManager)
     {
-        InitializeComponent(); Action = action; _target = target; _picker = picker; _windowManager = windowManager; DataContext = Action;
+        InitializeComponent(); WindowAppearance.EnableDarkTitleBar(this); Action = action; _target = target; _picker = picker; _windowManager = windowManager; DataContext = Action;
     }
     private void Save_Click(object sender, RoutedEventArgs e)
     {

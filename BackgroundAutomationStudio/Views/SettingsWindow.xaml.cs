@@ -15,6 +15,7 @@ public partial class SettingsWindow : Window
     public SettingsWindow(AppSettings settings)
     {
         InitializeComponent();
+        WindowAppearance.EnableDarkTitleBar(this);
         _original = settings;
         HotkeyBox.Text = settings.RunHotkey;
         PauseHotkeyBox.Text = settings.PauseHotkey;
@@ -102,6 +103,7 @@ public partial class SettingsWindow : Window
             Language = VietnameseRadio.IsChecked == true ? "vi" : "en",
             RunHotkey = HotkeyBox.Text,
             PauseHotkey = PauseHotkeyBox.Text,
+            AlwaysOnTop = _original.AlwaysOnTop,
             PlaybackMode = UiAutomationRadio.IsChecked == true ? PlaybackModes.UiAutomation
                 : Win32Radio.IsChecked == true ? PlaybackModes.Win32Messages
                 : GameForegroundRadio.IsChecked == true ? PlaybackModes.GameForeground

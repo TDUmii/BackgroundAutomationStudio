@@ -141,4 +141,6 @@ public static class NativeMethods
     public static extern short GetAsyncKeyState(int virtualKey);
     [DllImport("user32.dll", SetLastError = true)]
     public static extern uint SendInput(uint count, INPUT[] inputs, int size);
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int valueSize);
 }

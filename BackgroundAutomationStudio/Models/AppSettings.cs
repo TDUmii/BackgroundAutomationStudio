@@ -6,6 +6,7 @@ public sealed class AppSettings
     public string RunHotkey { get; set; } = "CTRL+SHIFT+F9";
     public string PauseHotkey { get; set; } = "CTRL+SHIFT+F10";
     public string PlaybackMode { get; set; } = PlaybackModes.Automatic;
+    public bool AlwaysOnTop { get; set; }
 }
 
 public static class PlaybackModes

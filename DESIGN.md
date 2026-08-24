@@ -78,7 +78,7 @@ components:
 
 **Creative North Star: "The Graphite Control Desk"**
 
-Background Automation Studio is a dense but calm Windows operator workspace. Graphite surfaces keep target context, transport controls, project state, and the workflow editor visible together; darker accessible blue is reserved for primary action, keyboard focus, and live execution; red is reserved for recording, stop-record emphasis, and errors. Version 2.0 extends the same operator language to stronger covered-window playback without adopting gaming neon, decorative HUD chrome, or false claims of guaranteed raw-input background control.
+Background Automation Studio is a dense but calm Windows operator workspace. Graphite surfaces keep target context, transport controls, project state, and the workflow editor visible together; darker accessible blue is reserved for primary action, keyboard focus, and live execution; red is reserved for recording, stop-record emphasis, and errors. Version 2.1 completes the dark shell and adds a restrained pin control without adopting gaming neon, decorative HUD chrome, or false claims of guaranteed raw-input background control.
 
 The hierarchy follows the work rather than decoration. Selection and current execution are visibly different states, important fields have visible names, and the empty editor provides authored next-step guidance instead of a blank canvas.
 
@@ -184,7 +184,9 @@ Controls and nested information wells use 8px corners, workflow rows use 10px, a
 
 ### Navigation
 
-The top command bar shares the Graphite Canvas color with the app body so it reads as one continuous shell. File, Edit, hotkey, and Settings controls stay transparent; hover, keyboard focus, and an open menu are shown with a short blue underline instead of a filled rectangle. Dropdown and context-menu groups use spacing rather than separator rules. Text tabs use muted inactive labels, graphite hover, and a selected raised surface with near-white text and a blue underline. The bottom status bar stays quiet and persistent.
+The 34px custom title bar uses the deepest graphite surface and replaces the mismatched native white strip while preserving drag, resize, minimize, maximize/restore, and close behavior. Product identity sits left, the version stays quiet at center, and window controls sit right; the pin joins them as a persisted operator control. The 42px command bar shares the Graphite Canvas color with the app body so the shell reads continuously. File, Edit, hotkey, and Settings controls stay transparent. Hover, keyboard focus, and an open menu reveal a two-pixel blue underline that scales from the center to full width in 140ms and exits in 90ms. Dropdown and context menus contain no separator elements or rules. Text tabs use muted inactive labels, graphite hover, and a selected raised surface with near-white text and a blue underline. The bottom status bar stays quiet and persistent.
+
+When Windows disables client-area animation, the underline changes state immediately while retaining the same visible feedback.
 
 ### Game Engine Settings
 

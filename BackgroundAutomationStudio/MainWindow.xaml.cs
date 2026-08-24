@@ -1,8 +1,10 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using BackgroundAutomationStudio.Models;
 using BackgroundAutomationStudio.Services;
 using BackgroundAutomationStudio.ViewModels;
@@ -22,13 +24,91 @@ public partial class MainWindow : Window
         _settings = settings;
         InitializeComponent();
         DataContext = viewModel;
+        Topmost = settings.Current.AlwaysOnTop;
+        PinButton.Tag = Topmost;
+        PinButton.ToolTip = LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow");
+        AutomationProperties.SetName(PinButton, LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow"));
         UpdateHotkeyLabel();
         _runHotkey.Pressed += (_, _) => Dispatcher.Invoke(viewModel.ToggleRunFromHotkey);
         _pauseHotkey.Pressed += (_, _) => Dispatcher.Invoke(viewModel.TogglePauseFromHotkey);
     }
 
-    private void MenuButton_Click(object sender, RoutedEventArgs e) { if (sender is Button button && button.ContextMenu is { } menu) { menu.PlacementTarget = button; menu.DataContext = DataContext; menu.IsOpen = true; } }
+    private void MenuButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.ContextMenu is not { } menu) return;
+        menu.PlacementTarget = button;
+        menu.DataContext = DataContext;
+        menu.Closed -= Menu_Closed;
+        menu.Closed += Menu_Closed;
+        menu.IsOpen = true;
+        AnimateTopMenuUnderline(button, true);
+    }
+
+    private void Menu_Closed(object? sender, RoutedEventArgs e)
+    {
+        if (sender is ContextMenu { PlacementTarget: Button button })
+            AnimateTopMenuUnderline(button, button.IsMouseOver || button.IsKeyboardFocusWithin);
+    }
+
+    private void TopMenuButton_MouseEnter(object sender, MouseEventArgs e) => AnimateTopMenuUnderline((Button)sender, true);
+    private void TopMenuButton_MouseLeave(object sender, MouseEventArgs e)
+    {
+        var button = (Button)sender;
+        if (button.ContextMenu?.IsOpen != true && !button.IsKeyboardFocusWithin) AnimateTopMenuUnderline(button, false);
+    }
+    private void TopMenuButton_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) => AnimateTopMenuUnderline((Button)sender, true);
+    private void TopMenuButton_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        var button = (Button)sender;
+        if (button.ContextMenu?.IsOpen != true && !button.IsMouseOver) AnimateTopMenuUnderline(button, false);
+    }
+
+    private static void AnimateTopMenuUnderline(Button button, bool show)
+    {
+        button.ApplyTemplate();
+        if (button.Template.FindName("Underline", button) is not Border underline || underline.RenderTransform is not ScaleTransform scale) return;
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            underline.BeginAnimation(OpacityProperty, null);
+            scale.ScaleX = show ? 1 : 0;
+            underline.Opacity = show ? 1 : 0;
+            return;
+        }
+        var duration = TimeSpan.FromMilliseconds(show ? 140 : 90);
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(show ? 1 : 0, duration) { EasingFunction = easing });
+        underline.BeginAnimation(OpacityProperty, new DoubleAnimation(show ? 1 : 0, duration) { EasingFunction = easing });
+    }
     private void Window_SourceInitialized(object? sender, EventArgs e) => RegisterHotkey(true);
+
+    private void PinButton_Click(object sender, RoutedEventArgs e)
+    {
+        Topmost = !Topmost;
+        _settings.Current.AlwaysOnTop = Topmost;
+        _settings.Save(_settings.Current);
+        PinButton.Tag = Topmost;
+        PinButton.ToolTip = LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow");
+        AutomationProperties.SetName(PinButton, LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow"));
+    }
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e) => SystemCommands.MinimizeWindow(this);
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized) SystemCommands.RestoreWindow(this);
+        else SystemCommands.MaximizeWindow(this);
+    }
+    private void CloseButton_Click(object sender, RoutedEventArgs e) => SystemCommands.CloseWindow(this);
+    private void Window_StateChanged(object? sender, EventArgs e)
+    {
+        if (MaximizeGlyph is null) return;
+        var maximized = WindowState == WindowState.Maximized;
+        MaximizeGlyph.Data = Geometry.Parse(maximized
+            ? "M4,2 L12,2 L12,10 M2,4 L10,4 L10,12 L2,12 Z"
+            : "M2,2 L12,2 L12,12 L2,12 Z");
+        MaximizeButton.ToolTip = LocalizationService.Get(maximized ? "RestoreWindow" : "MaximizeWindow");
+        AutomationProperties.SetName(MaximizeButton, LocalizationService.Get(maximized ? "RestoreWindow" : "MaximizeWindow"));
+    }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => ShowSettings();
     private void HotkeyButton_Click(object sender, RoutedEventArgs e) => ShowSettings();
@@ -45,6 +125,7 @@ public partial class MainWindow : Window
             LocalizationService.Apply(dialog.Result.Language);
             if (DataContext is MainViewModel vm) vm.RefreshLanguage();
             UpdateHotkeyLabel();
+            UpdateTitleBarTooltips();
         }
         finally
         {
@@ -62,6 +143,13 @@ public partial class MainWindow : Window
     }
 
     private void UpdateHotkeyLabel() => HotkeyText.Text = $"{LocalizationService.Get("RunStopShort")}: {_settings.Current.RunHotkey}  ·  {LocalizationService.Get("PauseShort")}: {_settings.Current.PauseHotkey}";
+    private void UpdateTitleBarTooltips()
+    {
+        PinButton.ToolTip = LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow");
+        MaximizeButton.ToolTip = LocalizationService.Get(WindowState == WindowState.Maximized ? "RestoreWindow" : "MaximizeWindow");
+        AutomationProperties.SetName(PinButton, LocalizationService.Get(Topmost ? "UnpinWindow" : "PinWindow"));
+        AutomationProperties.SetName(MaximizeButton, LocalizationService.Get(WindowState == WindowState.Maximized ? "RestoreWindow" : "MaximizeWindow"));
+    }
     private void WorkflowList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _dragStart = e.GetPosition(null);
     private void WorkflowList_MouseMove(object sender, MouseEventArgs e) { var point = e.GetPosition(null); if (e.LeftButton != MouseButtonState.Pressed || Math.Abs(point.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(point.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return; var item = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource); if (item?.DataContext is AutomationAction action) DragDrop.DoDragDrop(item, action, DragDropEffects.Move); }
     private void WorkflowList_Drop(object sender, DragEventArgs e) { if (DataContext is not MainViewModel vm || e.Data.GetData(typeof(AutomationAction)) is not AutomationAction source) return; var targetItem = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource); if (targetItem?.DataContext is AutomationAction target) vm.MoveAction(vm.Actions.IndexOf(source), vm.Actions.IndexOf(target)); }
