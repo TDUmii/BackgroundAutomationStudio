@@ -14,9 +14,11 @@ public sealed partial class ScriptParser
     {
         var result = new ScriptParseResult();
         var lines = (script ?? string.Empty).Replace("\r\n", "\n").Split('\n');
+        var pendingNote = string.Empty;
         for (var i = 0; i < lines.Length; i++)
         {
             var raw = lines[i].Trim();
+            if (raw.StartsWith("# NOTE ", StringComparison.OrdinalIgnoreCase)) { pendingNote = raw[7..].Trim(); continue; }
             if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith('#') && !raw.StartsWith("# DISABLED ", StringComparison.OrdinalIgnoreCase)) continue;
             var enabled = true;
             if (raw.StartsWith("# DISABLED ", StringComparison.OrdinalIgnoreCase))
@@ -37,10 +39,11 @@ public sealed partial class ScriptParser
                 "KEY" => ParseKey(args, i + 1, result),
                 "HOLD" => ParseHold(args, i + 1, result),
                 "DRAG" => ParseDrag(args, i + 1, result),
+                "SCROLL" => ParseScroll(args, i + 1, result),
                 "TYPE" => ParseType(raw, i + 1, result),
                 _ => AddUnknown(command, i + 1, result)
             };
-            if (action is not null) { action.Enabled = enabled; result.Actions.Add(action); }
+            if (action is not null) { action.Enabled = enabled; action.Note = pendingNote; pendingNote = string.Empty; result.Actions.Add(action); }
         }
         return result;
     }
@@ -51,6 +54,7 @@ public sealed partial class ScriptParser
         foreach (var action in actions)
         {
             if (action.DelayBefore > 0) lines.Add($"WAIT {action.DelayBefore}");
+            if (!string.IsNullOrWhiteSpace(action.Note)) lines.Add($"# NOTE {action.Note.Replace('\r', ' ').Replace('\n', ' ')}");
             var line = action switch
             {
                 ClickAction a => $"CLICK {a.ClientX} {a.ClientY}",
@@ -60,6 +64,7 @@ public sealed partial class ScriptParser
                 KeyPressAction a => $"KEY {a.KeyName.ToUpperInvariant()}",
                 KeyHoldAction a => $"HOLD {a.KeyName.ToUpperInvariant()} {a.Milliseconds}",
                 DragAction a => $"DRAG {a.StartX} {a.StartY} {a.EndX} {a.EndY} {a.Milliseconds}",
+                ScrollAction a => $"SCROLL {a.ClientX} {a.ClientY} {a.Delta}",
                 WaitAction a => $"WAIT {a.Milliseconds}",
                 _ => throw new InvalidOperationException($"Unsupported action {action.GetType().Name}.")
             };
@@ -112,6 +117,18 @@ public sealed partial class ScriptParser
         if (values.Take(4).Any(value => value < 0)) { result.Errors.Add(new(line, "Drag coordinates cannot be negative")); return null; }
         if (values[4] <= 0) { result.Errors.Add(new(line, "Drag duration must be positive")); return null; }
         return new DragAction { StartX = values[0], StartY = values[1], EndX = values[2], EndY = values[3], Milliseconds = values[4] };
+    }
+
+    private static AutomationAction? ParseScroll(string args, int line, ScriptParseResult result)
+    {
+        var parts = args.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 3) { result.Errors.Add(new(line, "Expected X, Y, and wheel delta")); return null; }
+        var values = new int[3];
+        for (var index = 0; index < values.Length; index++)
+            if (!int.TryParse(parts[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out values[index])) { result.Errors.Add(new(line, "Scroll values must be numbers")); return null; }
+        if (values[0] < 0 || values[1] < 0) { result.Errors.Add(new(line, "Scroll coordinates cannot be negative")); return null; }
+        if (values[2] == 0 || values[2] < -12000 || values[2] > 12000) { result.Errors.Add(new(line, "Wheel delta must be between -12000 and 12000, excluding zero")); return null; }
+        return new ScrollAction { ClientX = values[0], ClientY = values[1], Delta = values[2] };
     }
 
     private static AutomationAction? ParseType(string raw, int line, ScriptParseResult result)

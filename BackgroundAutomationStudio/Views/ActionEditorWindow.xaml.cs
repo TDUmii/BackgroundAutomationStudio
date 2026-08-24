@@ -27,8 +27,7 @@ public partial class ActionEditorWindow : Window
             invalidField.Focus(); invalidField.SelectAll();
             var fieldName = AutomationProperties.GetName(invalidField);
             if (string.IsNullOrWhiteSpace(fieldName)) fieldName = "Numeric field";
-            var positive = Equals(invalidField.Tag, "PositiveInteger");
-            var requirement = positive ? "a whole number greater than zero" : "a whole number greater than or equal to zero";
+            var requirement = Equals(invalidField.Tag, "PositiveInteger") ? "a whole number greater than zero" : Equals(invalidField.Tag, "NonZeroInteger") ? "a non-zero wheel delta between -12000 and 12000" : "a whole number greater than or equal to zero";
             MessageBox.Show($"{fieldName} must be {requirement}. Enter a valid value, then save again.", "Check numeric value", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -41,14 +40,14 @@ public partial class ActionEditorWindow : Window
     private TextBox? ValidateNumericFields()
     {
         TextBox? firstInvalid = null;
-        foreach (var field in FindVisualChildren<TextBox>(this).Where(box => Equals(box.Tag, "NonNegativeInteger") || Equals(box.Tag, "PositiveInteger")))
+        foreach (var field in FindVisualChildren<TextBox>(this).Where(box => Equals(box.Tag, "NonNegativeInteger") || Equals(box.Tag, "PositiveInteger") || Equals(box.Tag, "NonZeroInteger")))
         {
-            var valid = int.TryParse(field.Text, out var value) && (Equals(field.Tag, "PositiveInteger") ? value > 0 : value >= 0);
+            var valid = int.TryParse(field.Text, out var value) && (Equals(field.Tag, "PositiveInteger") ? value > 0 : Equals(field.Tag, "NonZeroInteger") ? value is >= -12000 and <= 12000 and not 0 : value >= 0);
             field.ClearValue(Control.BorderBrushProperty); field.ClearValue(FrameworkElement.ToolTipProperty);
             if (!valid)
             {
                 field.BorderBrush = (Brush)FindResource("DangerBrush");
-                field.ToolTip = Equals(field.Tag, "PositiveInteger") ? "Enter a whole number greater than zero." : "Enter a whole number greater than or equal to zero.";
+                field.ToolTip = Equals(field.Tag, "PositiveInteger") ? "Enter a whole number greater than zero." : Equals(field.Tag, "NonZeroInteger") ? "Enter a non-zero wheel delta between -12000 and 12000." : "Enter a whole number greater than or equal to zero.";
                 firstInvalid ??= field;
             }
             else field.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();

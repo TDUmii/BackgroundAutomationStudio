@@ -23,6 +23,7 @@ public static class NativeMethods
     public const int WmRButtonDown = 0x0204;
     public const int WmRButtonUp = 0x0205;
     public const int WmMouseMove = 0x0200;
+    public const int WmMouseWheel = 0x020A;
     public const uint MkLButton = 0x0001;
     public const uint MkRButton = 0x0002;
     public const uint GaRoot = 2;
@@ -55,6 +56,7 @@ public static class NativeMethods
     public const uint MouseeventfLeftup = 0x0004;
     public const uint MouseeventfRightdown = 0x0008;
     public const uint MouseeventfRightup = 0x0010;
+    public const uint MouseeventfWheel = 0x0800;
     public const uint MouseeventfAbsolute = 0x8000;
     public const uint MouseeventfVirtualdesk = 0x4000;
     public const uint KeyeventfKeyup = 0x0002;

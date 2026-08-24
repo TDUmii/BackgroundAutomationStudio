@@ -78,7 +78,7 @@ components:
 
 **Creative North Star: "The Graphite Control Desk"**
 
-Background Automation Studio is a dense but calm Windows operator workspace. Graphite surfaces keep target context, transport controls, project state, and the workflow editor visible together; darker accessible blue is reserved for primary action, keyboard focus, and live execution; red is reserved for recording, stop-record emphasis, and errors. Version 2.1 completes the dark shell and adds a restrained pin control without adopting gaming neon, decorative HUD chrome, or false claims of guaranteed raw-input background control.
+Background Automation Studio is a dense but calm Windows operator workspace. Graphite surfaces keep target context, transport controls, project state, and the workflow editor visible together; darker accessible blue is reserved for primary action, keyboard focus, and live execution; red is reserved for recording, stop-record emphasis, and errors. Version 2.2 extends the editor with scroll actions, inline notes, and keyboard-first clipboard commands without adopting Remaku's tree composition, gaming neon, decorative HUD chrome, or false claims of guaranteed raw-input background control.
 
 The hierarchy follows the work rather than decoration. Selection and current execution are visibly different states, important fields have visible names, and the empty editor provides authored next-step guidance instead of a blank canvas.
 
@@ -143,7 +143,7 @@ The main window opens at 1280×820 with a 1024×680 minimum. A 42px menu/product
 
 Major panels use 18px internal padding. Spacing follows a 4/8/12/16/24/32 family, with 14px and 18px used where the dense desktop grid needs intermediate separation. The action editor is a focused 470px owner-centered dialog, sized to content and capped at 720px high. Settings opens as a resizable 620×820 owner-centered window with a 560×680 minimum; its 24px outer margin, fixed header and footer, and single scrolling content panel keep Save settings continuously available.
 
-Workflow rows scan left-to-right as play marker, number, enabled checkbox, action type, summary, and current-state text. The empty list centers an authored title and specific guidance for recording or adding an action manually.
+Workflow rows scan left-to-right as play marker, number, enabled checkbox, localized action type, summary with an optional muted italic note, and current-state text. The empty list centers an authored title and specific guidance for recording or adding an action manually.
 
 **The Editor Priority Rule.** Preserve the context rail and give additional window width to the workflow editor.
 
@@ -215,6 +215,12 @@ During a run, the activation shield prevents ordinary target activation and the 
 ### Editor History
 
 Undo and Redo are compact neutral controls beside Add action and are repeated in the Edit menu. They use standard Windows gestures: `Ctrl+Z` for Undo, `Ctrl+Y` and `Ctrl+Shift+Z` for Redo. History covers visual edits, script edits, reordering, deletion, clearing, and completed recording batches while preserving stable action IDs. Running and recording temporarily disable history navigation.
+
+Clipboard commands live in the Edit and row context menus and reuse the same history rather than introducing a separate document model. When the workflow list owns keyboard focus, `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, and `Ctrl+D` copy, cut, paste, and duplicate; `Space` toggles skip, `Enter` edits, `Delete` removes, and `Alt+Up/Down` reorders. These gestures never intercept typing or clipboard commands inside the DSL editor.
+
+### Scroll Actions and Notes
+
+Mouse scroll is a first-class client-relative action beside click and drag. Its editor uses the same X/Y picker and validation system, plus a signed wheel delta where positive means up, negative means down, and 120 represents one notch. The row summary stays compact. Each action may carry one optional 180-character note, shown beneath its summary in muted italic text only when present and serialized as a readable `# NOTE` line before the DSL command.
 
 ### Run Schedule
 

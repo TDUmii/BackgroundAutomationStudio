@@ -6,6 +6,14 @@ namespace BackgroundAutomationStudio.Tests;
 public sealed class ActionModelTests
 {
     [Fact]
+    public void ScrollClone_PreservesCoordinatesDeltaAndCommonMetadata()
+    {
+        var original = new ScrollAction { ClientX = 25, ClientY = 80, Delta = 240, Note = "Zoom out", DelayBefore = 75, Enabled = false };
+        var clone = Assert.IsType<ScrollAction>(original.Clone());
+        Assert.Equal((25, 80, 240, "Zoom out", 75, false), (clone.ClientX, clone.ClientY, clone.Delta, clone.Note, clone.DelayBefore, clone.Enabled));
+        Assert.NotEqual(original.Id, clone.Id);
+    }
+    [Fact]
     public void Clone_CreatesNewIdentityAndPreservesEditableValues()
     {
         var original = new ClickAction { ClientX = 420, ClientY = 220, DelayBefore = 300, Enabled = false };

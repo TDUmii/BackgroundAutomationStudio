@@ -119,6 +119,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
                             case KeyPressAction key: PostKey(hwnd, key.KeyName); ReportClassicKeyboard(); break;
                             case KeyHoldAction hold: await PostKeyHoldAsync(hwnd, hold, waitUntilReady, token); break;
                             case DragAction drag: await PostDragAsync(hwnd, drag, waitUntilReady, token); break;
+                            case ScrollAction scroll: PostScroll(hwnd, scroll); break;
                         }
                     }
                 }
@@ -320,6 +321,7 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             case KeyPressAction key: PostKey(root, key.KeyName); break;
             case KeyHoldAction hold: await PostKeyHoldAsync(root, hold, waitUntilReady, token); break;
             case DragAction drag: await PostDragAsync(root, drag, waitUntilReady, token); break;
+            case ScrollAction scroll: PostScroll(root, scroll); break;
         }
         StatusChanged?.Invoke(this, L(
             "Background Engine v2 queued targeted input without activation - processing cannot be verified",
@@ -427,6 +429,15 @@ public sealed class BackgroundAutomationRunner : IAutomationRunner, IDisposable
             Post(recipient, NativeMethods.WmLButtonDblClk, new IntPtr(NativeMethods.MkLButton), position);
             Post(recipient, NativeMethods.WmLButtonUp, IntPtr.Zero, position);
         }
+    }
+
+    private static void PostScroll(IntPtr root, ScrollAction action)
+    {
+        var resolved = BackgroundMessageTargetResolver.Resolve(root, action.ClientX, action.ClientY);
+        var screen = new POINT(action.ClientX, action.ClientY);
+        if (!NativeMethods.ClientToScreen(root, ref screen)) throw new InvalidOperationException("Could not convert the client scroll point.");
+        var wheel = new IntPtr(unchecked((int)((uint)(ushort)(short)action.Delta << 16)));
+        Post(resolved.Hwnd, NativeMethods.WmMouseWheel, wheel, PackPoint(screen.X, screen.Y));
     }
 
     private static void PostText(IntPtr root, string text)

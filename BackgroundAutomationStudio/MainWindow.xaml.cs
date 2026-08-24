@@ -159,6 +159,26 @@ public partial class MainWindow : Window
     private void WorkflowList_MouseMove(object sender, MouseEventArgs e) { var point = e.GetPosition(null); if (e.LeftButton != MouseButtonState.Pressed || Math.Abs(point.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(point.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return; var item = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource); if (item?.DataContext is AutomationAction action) DragDrop.DoDragDrop(item, action, DragDropEffects.Move); }
     private void WorkflowList_Drop(object sender, DragEventArgs e) { if (DataContext is not MainViewModel vm || e.Data.GetData(typeof(AutomationAction)) is not AutomationAction source) return; var targetItem = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource); if (targetItem?.DataContext is AutomationAction target) vm.MoveAction(vm.Actions.IndexOf(source), vm.Actions.IndexOf(target)); }
     private void WorkflowList_MouseDoubleClick(object sender, MouseButtonEventArgs e) { if (DataContext is MainViewModel vm && vm.EditCommand.CanExecute(null)) vm.EditCommand.Execute(null); }
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (!WorkflowList.IsKeyboardFocusWithin || DataContext is not MainViewModel vm) return;
+        var modifiers = Keyboard.Modifiers;
+        ICommand? command = e.Key switch
+        {
+            Key.C when modifiers == ModifierKeys.Control => vm.CopyCommand,
+            Key.X when modifiers == ModifierKeys.Control => vm.CutCommand,
+            Key.V when modifiers == ModifierKeys.Control => vm.PasteCommand,
+            Key.D when modifiers == ModifierKeys.Control => vm.DuplicateCommand,
+            Key.Space when modifiers == ModifierKeys.None => vm.ToggleEnabledCommand,
+            Key.Delete when modifiers == ModifierKeys.None => vm.DeleteCommand,
+            Key.Enter when modifiers == ModifierKeys.None => vm.EditCommand,
+            Key.Up when modifiers == ModifierKeys.Alt => vm.MoveUpCommand,
+            Key.Down when modifiers == ModifierKeys.Alt => vm.MoveDownCommand,
+            _ => null
+        };
+        if (command?.CanExecute(null) != true) return;
+        command.Execute(null); e.Handled = true;
+    }
     private async void Window_Closing(object? sender, CancelEventArgs e)
     {
         if (_allowClose || DataContext is not MainViewModel vm) return;

@@ -55,6 +55,10 @@ public static class GameInputDispatcher
             case DragAction drag:
                 await DragAsync(target, drag, isReady, waitUntilReady, token);
                 break;
+            case ScrollAction scroll:
+                MoveToClientPoint(target, scroll.ClientX, scroll.ClientY);
+                SendChecked(new INPUT { Type = NativeMethods.InputMouse, Data = new INPUTUNION { Mouse = new MOUSEINPUT { MouseData = unchecked((uint)scroll.Delta), Flags = NativeMethods.MouseeventfWheel } } });
+                break;
         }
     }
 

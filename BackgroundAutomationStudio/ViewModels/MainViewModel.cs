@@ -39,6 +39,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _suspendWorkflowHistory;
     private string? _projectPath;
     private RecordChoice _recordChoice;
+    private AutomationAction? _actionClipboard;
 
     public MainViewModel(IWindowManager windowManager, WindowPickerService windowPicker, RecorderService recorder, IAutomationRunner runner, ScriptParser scriptParser, ProjectService projectService, IDialogService dialogs)
     {
@@ -66,6 +67,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         UndoCommand = new RelayCommand(_ => UndoWorkflow(), _ => _workflowHistory.CanUndo && !IsRecording && !IsRunning);
         RedoCommand = new RelayCommand(_ => RedoWorkflow(), _ => _workflowHistory.CanRedo && !IsRecording && !IsRunning);
         DuplicateCommand = new RelayCommand(_ => DuplicateSelected(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
+        CopyCommand = new RelayCommand(_ => CopySelected(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
+        CutCommand = new RelayCommand(_ => CutSelected(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
+        PasteCommand = new RelayCommand(_ => PasteAfterSelected(), _ => _actionClipboard is not null && !IsRecording && !IsRunning);
+        ToggleEnabledCommand = new RelayCommand(_ => ToggleSelectedEnabled(), _ => SelectedAction is not null && !IsRecording && !IsRunning);
         MoveUpCommand = new RelayCommand(_ => MoveSelected(-1), _ => CanMove(-1));
         MoveDownCommand = new RelayCommand(_ => MoveSelected(1), _ => CanMove(1));
         InsertAboveCommand = new RelayCommand(p => AddAction((string?)p ?? "Wait", true), _ => SelectedAction is not null && !IsRecording && !IsRunning);
@@ -113,6 +118,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ICommand UndoCommand { get; }
     public ICommand RedoCommand { get; }
     public ICommand DuplicateCommand { get; }
+    public ICommand CopyCommand { get; }
+    public ICommand CutCommand { get; }
+    public ICommand PasteCommand { get; }
+    public ICommand ToggleEnabledCommand { get; }
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
     public ICommand InsertAboveCommand { get; }
@@ -276,7 +285,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void AddAction(string type, bool? above)
     {
-        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "Drag" => new BackgroundAutomationStudio.Models.DragAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), "KeyHold" => new KeyHoldAction(), _ => new WaitAction() };
+        AutomationAction action = type switch { "Click" => new ClickAction(), "RightClick" => new RightClickAction(), "DoubleClick" => new DoubleClickAction(), "Drag" => new BackgroundAutomationStudio.Models.DragAction(), "Scroll" => new ScrollAction(), "TypeText" => new TypeTextAction(), "KeyPress" => new KeyPressAction(), "KeyHold" => new KeyHoldAction(), _ => new WaitAction() };
         var edited = _dialogs.EditAction(action, Project.Target, true); if (edited is null) return;
         var index = above is null || SelectedAction is null ? Actions.Count : Actions.IndexOf(SelectedAction) + (above.Value ? 0 : 1); Actions.Insert(index, edited); SelectedAction = edited;
     }
@@ -312,6 +321,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RaiseCommandStates();
     }
     private void DuplicateSelected() { if (SelectedAction is null) return; var clone = SelectedAction.Clone(); var index = Actions.IndexOf(SelectedAction) + 1; Actions.Insert(index, clone); SelectedAction = clone; }
+    private void CopySelected() { if (SelectedAction is null) return; _actionClipboard = SelectedAction.Clone(); StatusText = LocalizationService.Language == "vi" ? "Đã sao chép thao tác" : "Action copied"; RaiseCommandStates(); }
+    private void CutSelected() { if (SelectedAction is null) return; CopySelected(); DeleteSelected(); StatusText = LocalizationService.Language == "vi" ? "Đã cắt thao tác - nhấn Ctrl+V để dán" : "Action cut - press Ctrl+V to paste"; }
+    private void PasteAfterSelected()
+    {
+        if (_actionClipboard is null) return;
+        var pasted = _actionClipboard.Clone();
+        var index = SelectedAction is null ? Actions.Count : Actions.IndexOf(SelectedAction) + 1;
+        Actions.Insert(index, pasted); SelectedAction = pasted;
+        StatusText = LocalizationService.Language == "vi" ? "Đã dán thao tác" : "Action pasted";
+    }
+    private void ToggleSelectedEnabled()
+    {
+        if (SelectedAction is null) return;
+        SelectedAction.Enabled = !SelectedAction.Enabled;
+        StatusText = LocalizationService.Language == "vi" ? (SelectedAction.Enabled ? "Đã bật thao tác" : "Đã bỏ qua thao tác") : (SelectedAction.Enabled ? "Action enabled" : "Action skipped");
+    }
     private bool CanMove(int delta) => SelectedAction is not null && !IsRecording && !IsRunning && Actions.IndexOf(SelectedAction) + delta >= 0 && Actions.IndexOf(SelectedAction) + delta < Actions.Count;
     private void MoveSelected(int delta) { if (SelectedAction is not null) MoveAction(Actions.IndexOf(SelectedAction), Actions.IndexOf(SelectedAction) + delta); }
 
@@ -325,6 +350,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void CaptureWorkflowHistory() { if (!_suspendWorkflowHistory && _workflowHistory.Capture(Actions)) RaiseCommandStates(); }
     private void RunnerOnCurrentActionChanged(object? sender, AutomationAction? current) => Application.Current.Dispatcher.Invoke(() => { foreach (var action in Actions) action.IsCurrent = action.Id == current?.Id; });
     private void NotifyScheduleChanged() { OnPropertyChanged(nameof(RepeatMode)); OnPropertyChanged(nameof(RepeatCount)); OnPropertyChanged(nameof(RepeatDurationMinutes)); OnPropertyChanged(nameof(StopAtTime)); }
-    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, UndoCommand, RedoCommand, DuplicateCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
+    private void RaiseCommandStates() { foreach (var command in new ICommand[] { NewCommand, OpenCommand, SaveCommand, SaveAsCommand, SelectWindowCommand, StartRecordCommand, StopRecordCommand, CancelRecordCommand, RunCommand, PauseCommand, StopRunCommand, EditCommand, DeleteCommand, ClearAllCommand, UndoCommand, RedoCommand, DuplicateCommand, CopyCommand, CutCommand, PasteCommand, ToggleEnabledCommand, MoveUpCommand, MoveDownCommand, InsertAboveCommand, InsertBelowCommand, AddActionCommand }) if (command is RelayCommand relay) relay.RaiseCanExecuteChanged(); else if (command is AsyncRelayCommand asyncRelay) asyncRelay.RaiseCanExecuteChanged(); }
     public void Dispose() { _recordTimer.Stop(); _recorder.Dispose(); _runner.Stop(); if (_runner is IDisposable disposable) disposable.Dispose(); _windowPicker.Dispose(); }
 }

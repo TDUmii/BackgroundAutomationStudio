@@ -6,15 +6,17 @@ Background Automation Studio is a Windows 10/11 desktop application for recordin
 
 Download the ready-to-run, self-contained Windows x64 application:
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.1.1/BackgroundAutomationStudio.exe)**
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.2.0/BackgroundAutomationStudio.exe)**
 
-No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v2.1.1 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.1.1).
+No separate .NET installation is required. Release details and the SHA-256 checksum are available on the [v2.2.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.2.0).
 
 ## Features
 
 - Select and re-resolve one visible target window, then capture its client layout as recording metadata.
-- Record explicit clicks and keyboard actions while ignoring pointer movement and actions on other windows.
-- Edit, reorder, duplicate, enable, disable, and delete actions in the visual editor or the built-in DSL.
+- Record explicit clicks, wheel scrolling, and keyboard actions while ignoring pointer movement and actions on other windows.
+- Edit, reorder, copy, cut, paste, duplicate, enable, skip, and delete actions in the visual editor or the built-in DSL.
+- Add an optional inline note to any action. Notes are preserved in project JSON and as readable `# NOTE` lines in the DSL.
+- Use workflow-list shortcuts: `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, `Ctrl+D`, `Space`, `Delete`, `Enter`, and `Alt+Up/Down`.
 - Undo and redo workflow edits from buttons, the Edit menu, `Ctrl+Z`, `Ctrl+Y`, or `Ctrl+Shift+Z`.
 - Run, pause, resume, stop, highlight the current action, and choose a fixed repeat count, infinite run, duration timer, or clock stop time.
 - Clear the complete workflow with one confirmed action.
@@ -22,7 +24,7 @@ No separate .NET installation is required. Release details and the SHA-256 check
 - Choose Strict background, Modern controls (may take focus), or Classic Win32 messages in Settings.
 - Choose Game Macro - foreground for games that require real Windows input. Switching to another app releases held input and auto-pauses without forcing the game back to the front.
 - Try Background Engine v2 - experimental for target-local control resolution, improved Win32 key/pointer messages, and synthetic focus messages without foreground activation. Raw-input games may still ignore them.
-- Record and edit held keys and pointer drags in either visual or script form (`HOLD` and `DRAG`). Game recording recognizes key holds of at least 150 ms and pointer drags beyond the Windows drag threshold.
+- Record and edit held keys, pointer drags, and wheel scrolling in either visual or script form (`HOLD`, `DRAG`, and `SCROLL`). Game recording recognizes key holds of at least 150 ms and pointer drags beyond the Windows drag threshold.
 - Configure separate global Run/Emergency Stop and Pause/Resume shortcuts, defaulting to `Ctrl+Shift+F9` and `Ctrl+Shift+F10`.
 - Run up to 1,000,000 repeats, indefinitely, for a duration, or until a clock time.
 - See diagnostic playback status for the engine used, fallback behavior, minimized-target restoration, and actionable compatibility errors.
@@ -50,7 +52,7 @@ Games, elevated applications when the studio is not elevated, custom browser or 
 
 ## Game Macro compatibility
 
-**Game Macro - foreground** converts clicks, text, key presses, held keys, and drags into ordinary `SendInput` events. It does not activate or raise the selected game. Before every action and throughout waits or held input, it verifies that the selected top-level window is still foreground. If the user changes apps, held keys/buttons are released and playback waits. Returning to the selected game resumes the remaining schedule automatically. Because Windows exposes no atomic "send only if this HWND is still foreground" operation, the single action already crossing the OS input boundary during an exact focus transition can be cancelled; later iterations resume and input is not redirected intentionally.
+**Game Macro - foreground** converts clicks, text, key presses, held keys, drags, and wheel scrolling into ordinary `SendInput` events. It does not activate or raise the selected game. Before every action and throughout waits or held input, it verifies that the selected top-level window is still foreground. If the user changes apps, held keys/buttons are released and playback waits. Returning to the selected game resumes the remaining schedule automatically. Because Windows exposes no atomic "send only if this HWND is still foreground" operation, the single action already crossing the OS input boundary during an exact focus transition can be cancelled; later iterations resume and input is not redirected intentionally.
 
 **Background Engine v2 - experimental** uses targeted window messages and preserves the user's foreground window and pointer. It resolves pointer recipients entirely inside the selected target even when another window covers it, sends mouse movement before button messages, preserves extended/system-key flags, and maintains a synthetic focus state without foreground activation. It also verifies that a focused child belongs to the selected top-level target before posting keys. Acceptance cannot be detected from outside the target: Project Zomboid and other raw-input games may ignore every message while unfocused.
 
@@ -95,6 +97,8 @@ TYPE "Hello World"
 KEY ENTER
 HOLD E 1500
 DRAG 200 150 500 350 800
+# NOTE Scroll the inventory list
+SCROLL 500 350 -360
 WAIT 500
 ```
 

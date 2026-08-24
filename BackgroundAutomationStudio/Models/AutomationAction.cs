@@ -11,17 +11,20 @@ namespace BackgroundAutomationStudio.Models;
 [JsonDerivedType(typeof(KeyPressAction), "keyPress")]
 [JsonDerivedType(typeof(KeyHoldAction), "keyHold")]
 [JsonDerivedType(typeof(DragAction), "drag")]
+[JsonDerivedType(typeof(ScrollAction), "scroll")]
 [JsonDerivedType(typeof(WaitAction), "wait")]
 public abstract class AutomationAction : ObservableObject
 {
     private bool _enabled = true;
     private int _delayBefore;
+    private string _note = string.Empty;
     private bool _isCurrent;
 
     public Guid Id { get; set; } = Guid.NewGuid();
     public abstract string ActionType { get; }
     public bool Enabled { get => _enabled; set => SetProperty(ref _enabled, value); }
     public int DelayBefore { get => _delayBefore; set => SetProperty(ref _delayBefore, Math.Max(0, value)); }
+    public string Note { get => _note; set => SetProperty(ref _note, value?.Trim() ?? string.Empty); }
     [JsonIgnore] public bool IsCurrent { get => _isCurrent; set => SetProperty(ref _isCurrent, value); }
     [JsonIgnore] public abstract string Summary { get; }
     public abstract AutomationAction Clone();
@@ -29,6 +32,7 @@ public abstract class AutomationAction : ObservableObject
     {
         target.Enabled = Enabled;
         target.DelayBefore = DelayBefore;
+        target.Note = Note;
     }
 }
 
@@ -103,6 +107,15 @@ public sealed class DragAction : AutomationAction
     public override string ActionType => "Drag";
     public override string Summary => $"{StartX},{StartY} → {EndX},{EndY}  {Milliseconds:N0} ms";
     public override AutomationAction Clone() { var a = new DragAction { StartX = StartX, StartY = StartY, EndX = EndX, EndY = EndY, Milliseconds = Milliseconds }; CopyCommonTo(a); return a; }
+}
+
+public sealed class ScrollAction : PointerAction
+{
+    private int _delta = -120;
+    public int Delta { get => _delta; set { if (SetProperty(ref _delta, value == 0 ? -120 : Math.Clamp(value, -12000, 12000))) OnPropertyChanged(nameof(Summary)); } }
+    public override string ActionType => "Scroll";
+    public override string Summary => $"X: {ClientX}  Y: {ClientY}  {(Delta > 0 ? "↑" : "↓")} {Math.Abs(Delta) / 120d:0.#}";
+    public override AutomationAction Clone() { var a = new ScrollAction { ClientX = ClientX, ClientY = ClientY, Delta = Delta }; CopyCommonTo(a); return a; }
 }
 
 public sealed class WaitAction : AutomationAction

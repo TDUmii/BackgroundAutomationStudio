@@ -42,7 +42,7 @@ public sealed class DialogService(WindowPickerService picker, IWindowManager win
     public AutomationAction? EditAction(AutomationAction action, WindowTarget? target, bool isNew = false)
     {
         var clone = action.Clone();
-        var type = clone.ActionType switch { "Click" => LocalizationService.Get("Click"), "Right click" => LocalizationService.Get("RightClick"), "Double click" => LocalizationService.Get("DoubleClick"), "Type text" => LocalizationService.Get("TypeText"), "Key press" => LocalizationService.Get("KeyPress"), _ => LocalizationService.Get("Wait") };
+        var type = clone.ActionType switch { "Click" => LocalizationService.Get("Click"), "Right click" => LocalizationService.Get("RightClick"), "Double click" => LocalizationService.Get("DoubleClick"), "Drag" => LocalizationService.Get("Drag"), "Scroll" => LocalizationService.Get("Scroll"), "Type text" => LocalizationService.Get("TypeText"), "Key press" => LocalizationService.Get("KeyPress"), "Hold key" => LocalizationService.Get("KeyHold"), _ => LocalizationService.Get("Wait") };
         var dialog = new ActionEditorWindow(clone, target, picker, windowManager) { Owner = Application.Current.MainWindow, Title = $"{LocalizationService.Get(isNew ? "Add" : "Edit")} {type}" };
         return dialog.ShowDialog() == true ? dialog.Action : null;
     }

@@ -80,4 +80,26 @@ public sealed class ScriptParserTests
         Assert.False(result.IsValid);
         Assert.Equal(expected, result.Errors.Single().ToString());
     }
+
+    [Fact]
+    public void ScrollAndNote_RoundTripThroughDsl()
+    {
+        var original = new ScrollAction { ClientX = 320, ClientY = 240, Delta = -360, Note = "Scroll the inventory list" };
+        var script = _parser.Serialize([original]);
+        Assert.Equal("# NOTE Scroll the inventory list\r\nSCROLL 320 240 -360", script);
+        var parsed = _parser.Parse(script);
+        Assert.True(parsed.IsValid);
+        var scroll = Assert.IsType<ScrollAction>(Assert.Single(parsed.Actions));
+        Assert.Equal((320, 240, -360, "Scroll the inventory list"), (scroll.ClientX, scroll.ClientY, scroll.Delta, scroll.Note));
+    }
+
+    [Theory]
+    [InlineData("SCROLL 1 2 0", "Line 1: Wheel delta must be between -12000 and 12000, excluding zero")]
+    [InlineData("SCROLL -1 2 120", "Line 1: Scroll coordinates cannot be negative")]
+    public void Parse_InvalidScroll_ReturnsSpecificError(string script, string expected)
+    {
+        var result = _parser.Parse(script);
+        Assert.False(result.IsValid);
+        Assert.Equal(expected, result.Errors.Single().ToString());
+    }
 }

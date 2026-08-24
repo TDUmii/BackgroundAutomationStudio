@@ -84,7 +84,7 @@ public sealed class RecorderService : IDisposable
         // WM_MOUSEMOVE is deliberately never handled or stored.
         var message = wParam.ToInt32();
         var gameRecording = PlaybackModes.IsGame(_playbackModeProvider());
-        if (code >= 0 && IsRecording && (message == NativeMethods.WmLButtonDown || message == NativeMethods.WmRButtonDown || gameRecording && message == NativeMethods.WmLButtonUp))
+        if (code >= 0 && IsRecording && (message == NativeMethods.WmLButtonDown || message == NativeMethods.WmRButtonDown || message == NativeMethods.WmMouseWheel || gameRecording && message == NativeMethods.WmLButtonUp))
         {
             var data = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
             if (_windowManager.IsPointInsideTarget(_targetHwnd, data.Point) || gameRecording && message == NativeMethods.WmLButtonUp && _gameLeftDown is not null)
@@ -94,7 +94,13 @@ public sealed class RecorderService : IDisposable
                 lock (_sync)
                 {
                     FlushText();
-                    if (message == NativeMethods.WmRButtonDown)
+                    if (message == NativeMethods.WmMouseWheel)
+                    {
+                        FlushPendingClick();
+                        var delta = unchecked((short)(data.MouseData >> 16));
+                        if (delta != 0) Commit(new ScrollAction { ClientX = Math.Max(0, client.X), ClientY = Math.Max(0, client.Y), Delta = delta }, DateTime.UtcNow);
+                    }
+                    else if (message == NativeMethods.WmRButtonDown)
                     {
                         FlushPendingClick();
                         Commit(new RightClickAction { ClientX = client.X, ClientY = client.Y }, DateTime.UtcNow);
