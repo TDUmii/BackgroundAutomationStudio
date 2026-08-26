@@ -8,6 +8,15 @@ Build repeatable Windows workflows around a selected target window while keeping
 
 The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.5.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.5.0).
 
+## Mini editions
+
+Choose a mini edition when the complete workflow editor and visual matching engine are unnecessary:
+
+- **[Recorder Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v1.0.0/BackgroundAutomationRecorderMini.exe)** selects one window, records its clicks, right clicks, wheel input, and key presses, then exports a portable JSON recording.
+- **[Click Repeater Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v1.0.0/BackgroundAutomationClickRepeaterMini.exe)** repeats one client-relative background click with a configurable interval, count, infinite mode, point picker, and global start or stop shortcut. Cancel point selection with its button or `Escape`; completed, stopped, and error results remain visible until the next operation.
+
+Each mini download is one self-contained Windows x64 EXE that needs no separate .NET installation or adjacent runtime files. Both default to English, include Vietnamese, use `CTRL+SHIFT+F9` for global start or stop when the shortcut is available, and omit OpenCV and the full Studio editor to reduce download size. They do not replace the complete Studio release.
+
 ## What makes it different
 
 | Capability | Background Automation Studio |
@@ -76,13 +85,15 @@ WAIT 500
 dotnet build .\BackgroundAutomationStudio.sln -c Release
 dotnet test .\BackgroundAutomationStudio.sln -c Release
 dotnet run --project .\BackgroundAutomationStudio\BackgroundAutomationStudio.csproj -c Release
+dotnet run --project .\Editions\RecorderMini\BackgroundAutomationRecorderMini.csproj -c Release
+dotnet run --project .\Editions\ClickRepeaterMini\BackgroundAutomationClickRepeaterMini.csproj -c Release
 ```
 
 ## Compatibility boundaries
 
 - A target can ignore background messages when it requires foreground, raw, injected, or hardware input.
 - Foreground input shares the physical desktop pointer and keyboard stream; Windows does not provide an isolated second cursor for ordinary applications.
-- Minimized targets are restored before playback; fully hidden targets are not automated.
+- The full Studio restores minimized targets before playback; fully hidden targets are not automated. Click Repeater Mini requires its selected target to remain open and not minimized.
 - The selected target must run at an equal or lower Windows integrity level.
 - Moving the target is supported. Resizing it or changing its internal layout can move controls away from recorded client coordinates.
 - Visual matching reads the real screen when the target is foreground. When the target is covered, it asks the target to render through the Windows `PrintWindow` path. Some hardware-rendered or protected surfaces return a blank or stale frame and must stay visible in foreground mode.

@@ -30,6 +30,8 @@ The app runs visibly on Windows 10/11. Recording is always user initiated and ob
 
 ## Capabilities and Constraints
 
+Mini Editions v1.0.0 adds two independently packaged, source-sharing utilities that omit OpenCV and the full workflow editor. Recorder Mini captures clicks, right clicks, wheel input, and key presses from one selected window and exports portable JSON. Click Repeater Mini sends one client-relative background click on a count, infinite schedule, and configurable start-to-start interval. Its point picker can be cancelled from the button or with Escape, and terminal completion, stop, error, and progress states remain visible until the next operation. Each mini ships as one self-contained Windows x64 EXE. Both retain English and Vietnamese UI, explicit raw-input limitations, local-only operation, and a global start or stop shortcut when available.
+
 Version 2.5.0 adds HEX and RGB color matching, a spectrum picker, tolerance and minimum-area controls, wait-for-color and click-color actions, a categorized drag-and-drop block palette, and an inline reusable-function editor. Image and color capture do not guarantee usable frames from hardware-rendered or protected targets.
 
 Version 2.4.0 adds embedded PNG templates, multi-scale grayscale matching, wait-for-appearance, wait-for-disappearance, matched-image clicking, similarity and polling controls, client-relative search regions, and foreground-screen or covered-window capture paths. Visual matching does not guarantee usable frames from hardware-rendered or protected targets.

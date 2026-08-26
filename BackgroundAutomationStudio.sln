@@ -7,6 +7,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundAutomationStudio"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundAutomationStudio.Tests", "BackgroundAutomationStudio.Tests\BackgroundAutomationStudio.Tests.csproj", "{F5B7EAA2-A7B5-4342-AFE3-AE0366AC2FED}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Editions", "Editions", "{67C38235-875C-44BC-B069-5BA980BA09EE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniCore", "Editions\MiniCore\MiniCore.csproj", "{4B97036B-C22C-43FF-9DA9-E0DF9EE8BC5C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundAutomationRecorderMini", "Editions\RecorderMini\BackgroundAutomationRecorderMini.csproj", "{4D512485-B1BF-4504-8F69-83D036B7F7D0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundAutomationClickRepeaterMini", "Editions\ClickRepeaterMini\BackgroundAutomationClickRepeaterMini.csproj", "{286D36B3-8274-49BC-879D-4A6BB78EDC42}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +32,22 @@ Global
 		{F5B7EAA2-A7B5-4342-AFE3-AE0366AC2FED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F5B7EAA2-A7B5-4342-AFE3-AE0366AC2FED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F5B7EAA2-A7B5-4342-AFE3-AE0366AC2FED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B97036B-C22C-43FF-9DA9-E0DF9EE8BC5C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B97036B-C22C-43FF-9DA9-E0DF9EE8BC5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B97036B-C22C-43FF-9DA9-E0DF9EE8BC5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B97036B-C22C-43FF-9DA9-E0DF9EE8BC5C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D512485-B1BF-4504-8F69-83D036B7F7D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D512485-B1BF-4504-8F69-83D036B7F7D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D512485-B1BF-4504-8F69-83D036B7F7D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D512485-B1BF-4504-8F69-83D036B7F7D0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{286D36B3-8274-49BC-879D-4A6BB78EDC42}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{286D36B3-8274-49BC-879D-4A6BB78EDC42}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{286D36B3-8274-49BC-879D-4A6BB78EDC42}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{286D36B3-8274-49BC-879D-4A6BB78EDC42}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{4B97036B-C22C-43FF-9DA9-E0DF9EE8BC5C} = {67C38235-875C-44BC-B069-5BA980BA09EE}
+		{4D512485-B1BF-4504-8F69-83D036B7F7D0} = {67C38235-875C-44BC-B069-5BA980BA09EE}
+		{286D36B3-8274-49BC-879D-4A6BB78EDC42} = {67C38235-875C-44BC-B069-5BA980BA09EE}
 	EndGlobalSection
 EndGlobal

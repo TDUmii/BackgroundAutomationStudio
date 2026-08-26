@@ -82,6 +82,8 @@ Background Automation Studio is a dense but calm Windows operator workspace. Gra
 
 The hierarchy follows the work rather than decoration. Selection and current execution are visibly different states, important fields have visible names, and the empty editor provides authored next-step guidance instead of a blank canvas.
 
+Recorder Mini and Click Repeater Mini inherit the same Graphite Control Desk tokens but distill the shell to one task. Each mini edition uses one window, one primary action, direct status text, the same field and button vocabulary, English by default with Vietnamese available, and no visual matching surfaces. Their reduced composition must feel intentionally focused rather than like the main Studio with missing panels. Click Repeater point selection is an explicit mode with a visible Cancel action and Escape exit. Completed, stopped, and error states retain their final progress until the next operation instead of immediately resetting to Ready.
+
 **Key Characteristics:**
 
 - Graphite tonal layering with thin cool-gray boundaries.

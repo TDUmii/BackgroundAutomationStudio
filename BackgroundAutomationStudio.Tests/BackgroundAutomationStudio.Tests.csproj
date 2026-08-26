@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BackgroundAutomationStudio\BackgroundAutomationStudio.csproj" />
+    <ProjectReference Include="..\Editions\MiniCore\MiniCore.csproj" />
   </ItemGroup>
 
 </Project>
