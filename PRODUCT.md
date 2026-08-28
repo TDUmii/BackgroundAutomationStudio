@@ -14,7 +14,7 @@ C#, .NET 8, WPF, MVVM, Windows API through P/Invoke, System.Text.Json, and OpenC
 
 ## Users
 
-Windows users who need to capture, inspect, correct, save, and replay a small sequence of clicks and keyboard actions against one chosen application window without losing control of their physical mouse during playback.
+Windows users who need either a complete editable background-oriented workflow studio or a deliberately smaller foreground utility. The full Studio prioritizes retaining desktop control where the target accepts background delivery; the Mini editions trade that isolation for the compatibility of the physical Windows input path.
 
 ## Product Purpose
 
@@ -29,6 +29,8 @@ The workflow remains inspectable, reversible, and editable in both a direct-mani
 The app runs visibly on Windows 10/11. Recording is always user initiated and observes real input in the selected target. Version 2.2 keeps Background Engine v2 and the unified dark shell, then adds wheel-scroll capture/playback, inline action notes, and keyboard-first clipboard editing. Potentially focus-taking UI Automation remains an explicitly selected compatibility mode. Projects are local JSON files.
 
 ## Capabilities and Constraints
+
+Mini Editions v2.0.0 is a deliberate foreground-only split. Foreground Recorder Mini records one selected window and replays its short sequence with the same physical Windows mouse and keyboard path as Studio Engine 2. One Click Mini is the smallest edition and repeats only one selected point with the physical mouse. Both activate the chosen target once, pause when that target loses focus, expose physical press duration, default to English with Vietnamese available, and use a lighter graphite dark theme with fully rounded dropdown and tooltip surfaces. They do not provide background pointer isolation.
 
 Mini Editions v1.0.0 adds two independently packaged, source-sharing utilities that omit OpenCV and the full workflow editor. Recorder Mini captures clicks, right clicks, wheel input, and key presses from one selected window and exports portable JSON. Click Repeater Mini sends one client-relative background click on a count, infinite schedule, and configurable start-to-start interval. Its point picker can be cancelled from the button or with Escape, and terminal completion, stop, error, and progress states remain visible until the next operation. Each mini ships as one self-contained Windows x64 EXE. Both retain English and Vietnamese UI, explicit raw-input limitations, local-only operation, and a global start or stop shortcut when available.
 

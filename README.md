@@ -12,10 +12,10 @@ The release is a self-contained Windows x64 executable; no separate .NET install
 
 Choose a mini edition when the complete workflow editor and visual matching engine are unnecessary:
 
-- **[Recorder Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v1.0.0/BackgroundAutomationRecorderMini.exe)** selects one window, records its clicks, right clicks, wheel input, and key presses, then exports a portable JSON recording.
-- **[Click Repeater Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v1.0.0/BackgroundAutomationClickRepeaterMini.exe)** repeats one client-relative background click with a configurable interval, count, infinite mode, point picker, and global start or stop shortcut. Cancel point selection with its button or `Escape`; completed, stopped, and error results remain visible until the next operation.
+- **[Foreground Recorder Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v2.0.0/BackgroundAutomationRecorderMini.exe)** records clicks, right clicks, wheel input, and key presses from one window, then plays that recording once through the normal physical Windows input stream. It keeps only the focused Engine 2 behavior and can also export portable JSON.
+- **[One Click Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v2.0.0/BackgroundAutomationClickRepeaterMini.exe)** is the smallest edition. It focuses one selected window, moves the physical pointer to one client-relative point, and repeats that click with an interval, count, infinite mode, press duration, point picker, and global start or stop shortcut. Cancel point selection with its button or `Escape`; completed, stopped, and error results remain visible until the next operation.
 
-Each mini download is one self-contained Windows x64 EXE that needs no separate .NET installation or adjacent runtime files. Both default to English, include Vietnamese, use `CTRL+SHIFT+F9` for global start or stop when the shortcut is available, and omit OpenCV and the full Studio editor to reduce download size. They do not replace the complete Studio release.
+Each mini download is one self-contained Windows x64 EXE that needs no separate .NET installation or adjacent runtime files. Both default to English, include Vietnamese, use `CTRL+SHIFT+F9` for playback start or stop when the shortcut is available, and omit OpenCV and the full Studio editor to reduce download size. Both Mini editions intentionally take foreground focus and use the physical mouse or keyboard. They pause when the selected target loses focus and continue after it regains focus. They are not background automation and cannot leave the pointer free during playback. They do not replace the complete Studio release.
 
 ## What makes it different
 
@@ -93,7 +93,7 @@ dotnet run --project .\Editions\ClickRepeaterMini\BackgroundAutomationClickRepea
 
 - A target can ignore background messages when it requires foreground, raw, injected, or hardware input.
 - Foreground input shares the physical desktop pointer and keyboard stream; Windows does not provide an isolated second cursor for ordinary applications.
-- The full Studio restores minimized targets before playback; fully hidden targets are not automated. Click Repeater Mini requires its selected target to remain open and not minimized.
+- The full Studio restores minimized targets before playback; fully hidden targets are not automated. The Mini editions restore and focus their selected target before sending physical input.
 - The selected target must run at an equal or lower Windows integrity level.
 - Moving the target is supported. Resizing it or changing its internal layout can move controls away from recorded client coordinates.
 - Visual matching reads the real screen when the target is foreground. When the target is covered, it asks the target to render through the Windows `PrintWindow` path. Some hardware-rendered or protected surfaces return a blank or stale frame and must stay visible in foreground mode.

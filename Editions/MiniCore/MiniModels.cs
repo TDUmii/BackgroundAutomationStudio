@@ -21,6 +21,15 @@ public sealed record RecordedMiniStep(string Type, int DelayMilliseconds, int X 
         "Key" => $"Key  {Key}",
         _ => Type
     };
+
+    [JsonIgnore] public string SummaryVi => Type switch
+    {
+        "Click" => $"Nhấp trái  {X}, {Y}",
+        "RightClick" => $"Nhấp phải  {X}, {Y}",
+        "Scroll" => $"Cuộn  {Value} tại {X}, {Y}",
+        "Key" => $"Phím  {Key}",
+        _ => Type
+    };
 }
 
 public sealed record RecorderMiniExport(string Edition, DateTimeOffset CreatedAt, string TargetProcess, string TargetTitle, IReadOnlyList<RecordedMiniStep> Steps);

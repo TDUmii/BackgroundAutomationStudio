@@ -60,8 +60,18 @@ public sealed class MiniRecorder : IDisposable
         if (code >= 0 && wParam is 0x0100 or 0x0104 && MiniWindowService.IsTargetOrChild(_target, MiniNative.GetForegroundWindow()))
         {
             var data = Marshal.PtrToStructure<MiniNative.KBDLLHOOKSTRUCT>(lParam);
-            var key = KeyInterop.KeyFromVirtualKey((int)data.VkCode).ToString().ToUpperInvariant();
-            Add(new("Key", NextDelay(), Key: key));
+            var key = KeyInterop.KeyFromVirtualKey((int)data.VkCode);
+            if (key is not (Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin))
+            {
+                var chord = new List<string>();
+                if ((MiniNative.GetAsyncKeyState(0x11) & 0x8000) != 0) chord.Add(Key.LeftCtrl.ToString());
+                if ((MiniNative.GetAsyncKeyState(0x10) & 0x8000) != 0) chord.Add(Key.LeftShift.ToString());
+                if ((MiniNative.GetAsyncKeyState(0x12) & 0x8000) != 0) chord.Add(Key.LeftAlt.ToString());
+                if ((MiniNative.GetAsyncKeyState(0x5B) & 0x8000) != 0) chord.Add(Key.LWin.ToString());
+                else if ((MiniNative.GetAsyncKeyState(0x5C) & 0x8000) != 0) chord.Add(Key.RWin.ToString());
+                chord.Add(key.ToString());
+                Add(new("Key", NextDelay(), Key: string.Join('+', chord).ToUpperInvariant()));
+            }
         }
         return MiniNative.CallNextHookEx(nint.Zero, code, wParam, lParam);
     }

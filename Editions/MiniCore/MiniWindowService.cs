@@ -37,16 +37,6 @@ public sealed class MiniWindowService
         return new MiniPoint(point.X, point.Y);
     }
 
-    public static async Task SendBackgroundClickAsync(nint target, int x, int y, CancellationToken token)
-    {
-        if (!MiniNative.IsWindow(target)) throw new InvalidOperationException("The selected target window is no longer open.");
-        if (!TryPackClientPoint(target, x, y, out var packed)) throw new ArgumentOutOfRangeException(nameof(x), "The click point must be inside the current target client area.");
-        MiniNative.PostMessage(target, 0x0200, nint.Zero, packed);
-        MiniNative.PostMessage(target, 0x0201, (nint)1, packed);
-        try { await Task.Delay(24, token); }
-        finally { MiniNative.PostMessage(target, 0x0202, nint.Zero, packed); }
-    }
-
     public static bool TryPackClientPoint(nint target, int x, int y, out nint packed)
     {
         packed = nint.Zero;
@@ -65,6 +55,10 @@ internal static class MiniNative
     [StructLayout(LayoutKind.Sequential)] internal struct MSLLHOOKSTRUCT { public POINT Point; public uint MouseData; public uint Flags; public uint Time; public nuint ExtraInfo; }
     [StructLayout(LayoutKind.Sequential)] internal struct KBDLLHOOKSTRUCT { public uint VkCode; public uint ScanCode; public uint Flags; public uint Time; public nuint ExtraInfo; }
     [StructLayout(LayoutKind.Sequential)] internal struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+    [StructLayout(LayoutKind.Sequential)] internal struct INPUT { public uint Type; public INPUTUNION Data; }
+    [StructLayout(LayoutKind.Explicit)] internal struct INPUTUNION { [FieldOffset(0)] public MOUSEINPUT Mouse; [FieldOffset(0)] public KEYBDINPUT Keyboard; }
+    [StructLayout(LayoutKind.Sequential)] internal struct MOUSEINPUT { public int X; public int Y; public uint MouseData; public uint Flags; public uint Time; public nuint ExtraInfo; }
+    [StructLayout(LayoutKind.Sequential)] internal struct KEYBDINPUT { public ushort VirtualKey; public ushort ScanCode; public uint Flags; public uint Time; public nuint ExtraInfo; }
 
     [DllImport("user32.dll")] internal static extern bool EnumWindows(EnumWindowsProc callback, nint lParam);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern int GetWindowText(nint hwnd, StringBuilder text, int maxCount);
@@ -77,6 +71,13 @@ internal static class MiniNative
     [DllImport("user32.dll")] internal static extern nint WindowFromPoint(POINT point);
     [DllImport("user32.dll")] internal static extern bool ScreenToClient(nint hwnd, ref POINT point);
     [DllImport("user32.dll")] internal static extern bool GetClientRect(nint hwnd, out RECT rect);
+    [DllImport("user32.dll")] internal static extern bool ClientToScreen(nint hwnd, ref POINT point);
+    [DllImport("user32.dll")] internal static extern bool IsIconic(nint hwnd);
+    [DllImport("user32.dll")] internal static extern bool ShowWindow(nint hwnd, int command);
+    [DllImport("user32.dll")] internal static extern bool SetForegroundWindow(nint hwnd);
+    [DllImport("user32.dll")] internal static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll")] internal static extern short GetAsyncKeyState(int virtualKey);
+    [DllImport("user32.dll", SetLastError = true)] internal static extern uint SendInput(uint count, INPUT[] inputs, int size);
     [DllImport("user32.dll")] internal static extern bool PostMessage(nint hwnd, uint message, nint wParam, nint lParam);
     [DllImport("user32.dll")] internal static extern nint SetWindowsHookEx(int hookId, HookProc callback, nint module, uint threadId);
     [DllImport("user32.dll")] internal static extern bool UnhookWindowsHookEx(nint hook);

@@ -18,6 +18,11 @@ colors:
   border: "#303641"
   text-primary: "#F3F5F8"
   text-secondary: "#AEB6C4"
+  mini-app-background: "#171A1F"
+  mini-panel-background: "#20242B"
+  mini-field-background: "#1A1E24"
+  mini-border: "#3B424D"
+  mini-primary: "#3B6FC0"
 typography:
   headline:
     fontFamily: "Segoe UI Variable Text, Segoe UI"
@@ -40,6 +45,9 @@ rounded:
   control: "8px"
   row: "10px"
   panel: "12px"
+  mini-control: "10px"
+  mini-popup: "12px"
+  mini-panel: "14px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -70,6 +78,13 @@ components:
     textColor: "{colors.text-primary}"
     rounded: "{rounded.row}"
     padding: "10px 12px"
+  mini-button-primary:
+    backgroundColor: "{colors.mini-primary}"
+    textColor: "{colors.text-primary}"
+    typography: "{typography.body}"
+    rounded: "{rounded.mini-control}"
+    padding: "8px 14px"
+    height: "38px"
 ---
 
 # Design System: Background Automation Studio
@@ -82,7 +97,7 @@ Background Automation Studio is a dense but calm Windows operator workspace. Gra
 
 The hierarchy follows the work rather than decoration. Selection and current execution are visibly different states, important fields have visible names, and the empty editor provides authored next-step guidance instead of a blank canvas.
 
-Recorder Mini and Click Repeater Mini inherit the same Graphite Control Desk tokens but distill the shell to one task. Each mini edition uses one window, one primary action, direct status text, the same field and button vocabulary, English by default with Vietnamese available, and no visual matching surfaces. Their reduced composition must feel intentionally focused rather than like the main Studio with missing panels. Click Repeater point selection is an explicit mode with a visible Cancel action and Escape exit. Completed, stopped, and error states retain their final progress until the next operation instead of immediately resetting to Ready.
+Foreground Recorder Mini and One Click Mini inherit the Graphite Control Desk vocabulary but use the softer Mini palette and expanded corner scale defined in the frontmatter. Dropdown and tooltip popup windows remain transparent so their complete shells read as rounded rather than exposing square native corners. Foreground Recorder Mini presents recording and one focused physical-input playback action. One Click Mini presents exactly one point, repeat settings, and one Run action. Both must name foreground focus and physical pointer ownership before playback. Point selection is an explicit mode with a visible Cancel action and Escape exit. Completed, stopped, and error states retain their final progress until the next operation instead of immediately resetting to Ready.
 
 **Key Characteristics:**
 
