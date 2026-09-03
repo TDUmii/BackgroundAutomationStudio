@@ -32,6 +32,19 @@ public sealed class AppSettingsTests
         Assert.Equal(45, new AppSettings().GamePressDurationMilliseconds);
 
     [Fact]
+    public void PointerPathRecording_DefaultsOff_AndRoundTrips()
+    {
+        var defaults = new AppSettings();
+        Assert.False(defaults.RecordPointerPath);
+
+        defaults.RecordPointerPath = true;
+        var restored = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(defaults));
+
+        Assert.NotNull(restored);
+        Assert.True(restored.RecordPointerPath);
+    }
+
+    [Fact]
     public void FrozenUnderlineTransform_IsClonedBeforeAnimation()
     {
         var frozen = new ScaleTransform(0, 1);

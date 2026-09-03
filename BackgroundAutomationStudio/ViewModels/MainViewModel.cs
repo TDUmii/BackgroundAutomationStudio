@@ -281,7 +281,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(Project)); MarkModified();
             }
             _windowManager.RestoreLayout(Project.Target, hwnd); _windowManager.Activate(hwnd); _recorder.Start(hwnd);
-            IsRecording = true; RecordingTime = "00:00:00"; _recordTimer.Start(); StatusText = LocalizationService.Language == "vi" ? "Đang ghi - thao tác trên cửa sổ khác sẽ bị bỏ qua" : "Recording - actions on other windows are ignored";
+            IsRecording = true; RecordingTime = "00:00:00"; _recordTimer.Start();
+            StatusText = _recorder.WillRecordPointerPath
+                ? (LocalizationService.Language == "vi" ? "Đang ghi cả đường đi chuột - chỉ nhận thao tác trong cửa sổ đích có focus" : "Recording pointer path - only focused target actions are captured")
+                : (LocalizationService.Language == "vi" ? "Đang ghi - thao tác trên cửa sổ khác sẽ bị bỏ qua" : "Recording - actions on other windows are ignored");
         }
         catch (Exception ex) { _dialogs.Error("Could not start recording", ex.Message); }
     }

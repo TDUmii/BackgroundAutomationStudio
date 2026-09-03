@@ -47,6 +47,9 @@
                         <StackPanel Grid.Column="1"><TextBlock Text="{DynamicResource Milliseconds}" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,0,0,5"/><TextBox x:Name="GamePressDurationBox" FontFamily="Consolas" FontSize="15" MinHeight="42" VerticalContentAlignment="Center" AutomationProperties.LabeledBy="{Binding ElementName=GamePressDurationLabel}" AutomationProperties.HelpText="{DynamicResource GamePressDurationHelp}"/><TextBlock x:Name="GamePressDurationError" Foreground="#FFB8BE" Margin="0,7,0,0" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive"/></StackPanel>
                     </Grid>
                 </Border>
+                <CheckBox x:Name="RecordPointerPathBox" Margin="2,14,0,0" VerticalContentAlignment="Top" AutomationProperties.Name="Record physical pointer path" AutomationProperties.HelpText="Available with Engine 2. Playback moves and takes control of the physical pointer.">
+                    <StackPanel Margin="8,0,0,0"><TextBlock Text="{DynamicResource RecordPointerPath}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource RecordPointerPathHelp}" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
+                </CheckBox>
                 <TextBlock Text="{DynamicResource Compatibility}" Foreground="{StaticResource TextSecondary}" Margin="0,10,0,0" TextWrapping="Wrap"/>
             </StackPanel>
             </ScrollViewer>

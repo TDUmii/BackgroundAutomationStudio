@@ -12,6 +12,7 @@ public sealed class MiniEditionTests
         [
             new("Click", 250, 12, 34),
             new("Scroll", 500, 20, 40, -120),
+            new("Move", 32, 44, 55),
             new("Key", 75, Key: "ENTER")
         ];
         var export = new RecorderMiniExport("Recorder Mini", DateTimeOffset.Parse("2026-08-26T10:00:00+07:00"), "sample", "Sample Window", steps);
@@ -20,10 +21,23 @@ public sealed class MiniEditionTests
 
         Assert.Equal("Click  12, 34", steps[0].Summary);
         Assert.Equal("Scroll  -120 at 20, 40", steps[1].Summary);
-        Assert.Equal("Key  ENTER", steps[2].Summary);
+        Assert.Equal("Move pointer  44, 55", steps[2].Summary);
+        Assert.Equal("Di chuyển chuột  44, 55", steps[2].SummaryVi);
+        Assert.Equal("Key  ENTER", steps[3].Summary);
         Assert.Equal("Nhấp trái  12, 34", steps[0].SummaryVi);
         Assert.Contains("Sample Window", json);
         Assert.DoesNotContain("Handle", json);
+    }
+
+    [Fact]
+    public void PointerPathSampler_ThrottlesNoise_ButKeepsAVisiblePath()
+    {
+        var previous = new MiniPoint(100, 100);
+
+        Assert.True(MiniRecorder.ShouldCapturePointerMove(false, 0, previous, 1, new MiniPoint(100, 100)));
+        Assert.False(MiniRecorder.ShouldCapturePointerMove(true, 100, previous, 120, new MiniPoint(120, 120)));
+        Assert.False(MiniRecorder.ShouldCapturePointerMove(true, 100, previous, 140, new MiniPoint(101, 100)));
+        Assert.True(MiniRecorder.ShouldCapturePointerMove(true, 100, previous, 140, new MiniPoint(102, 100)));
     }
 
     [Theory]

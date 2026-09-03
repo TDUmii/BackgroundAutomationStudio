@@ -4,16 +4,16 @@ Build repeatable Windows workflows around a selected target window while keeping
 
 ## Download for Windows
 
-**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.5.0/BackgroundAutomationStudio.exe)**
+**[Download BackgroundAutomationStudio.exe](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/v2.6.0/BackgroundAutomationStudio.exe)**
 
-The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.5.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.5.0).
+The release is a self-contained Windows x64 executable; no separate .NET installation is required. Checksums are published on the [v2.6.0 release page](https://github.com/TDUmii/BackgroundAutomationStudio/releases/tag/v2.6.0).
 
 ## Mini editions
 
 Choose a mini edition when the complete workflow editor and visual matching engine are unnecessary:
 
-- **[Foreground Recorder Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v2.0.0/BackgroundAutomationRecorderMini.exe)** records clicks, right clicks, wheel input, and key presses from one window, then plays that recording once through the normal physical Windows input stream. It keeps only the focused Engine 2 behavior and can also export portable JSON.
-- **[One Click Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v2.0.0/BackgroundAutomationClickRepeaterMini.exe)** is the smallest edition. It focuses one selected window, moves the physical pointer to one client-relative point, and repeats that click with an interval, count, infinite mode, press duration, point picker, and global start or stop shortcut. Cancel point selection with its button or `Escape`; completed, stopped, and error results remain visible until the next operation.
+- **[Foreground Recorder Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v2.1.0/BackgroundAutomationRecorderMini.exe)** records clicks, right clicks, wheel input, key presses, and an optional sampled pointer path from one focused window, then plays that recording once through the normal physical Windows input stream. It keeps only the focused Engine 2 behavior and can also export portable JSON. Its lightweight recorder does not convert a drag gesture into a held-button `Drag` action; use the complete Studio when drag recording is required.
+- **[One Click Mini](https://github.com/TDUmii/BackgroundAutomationStudio/releases/download/mini-v2.1.0/BackgroundAutomationClickRepeaterMini.exe)** is the smallest edition. It focuses one selected window, moves the physical pointer to one client-relative point, and repeats that click with an interval, count, infinite mode, press duration, point picker, and global start or stop shortcut. Cancel point selection with its button or `Escape`; completed, stopped, and error results remain visible until the next operation.
 
 Each mini download is one self-contained Windows x64 EXE that needs no separate .NET installation or adjacent runtime files. Both default to English, include Vietnamese, use `CTRL+SHIFT+F9` for playback start or stop when the shortcut is available, and omit OpenCV and the full Studio editor to reduce download size. Both Mini editions intentionally take foreground focus and use the physical mouse or keyboard. They pause when the selected target loses focus and continue after it regains focus. They are not background automation and cannot leave the pointer free during playback. They do not replace the complete Studio release.
 
@@ -35,6 +35,7 @@ Each mini download is one self-contained Windows x64 EXE that needs no separate 
 ## Key features
 
 - Record clicks, right clicks, double clicks, wheel scrolling, text, key presses, held keys, and drags from the selected target only.
+- Optionally record a sampled client-relative mouse path for Engine 2, then replay it by moving the physical pointer through the captured points. Movement while the left button is held remains one editable drag action instead of being split into path points.
 - Add precise click, drag, scroll, wait, key, text, pointer-move, and function-call steps manually.
 - Inspect points directly on the target with a denser 25-pixel Screen Grid and an `X | Y` label above the live pointer; the target-owned overlay stays above topmost or borderless-style targets while they are foreground.
 - Toggle grid lines and choose blue, red, green, amber, or purple pin, diamond, or crosshair markers.
@@ -57,7 +58,7 @@ Each mini download is one self-contained Windows x64 EXE that needs no separate 
 | Mode | Use it when | Behavior and limit |
 | --- | --- | --- |
 | **1 - Strict background** | The target uses standard controls and your focus must remain untouched. | Sends semantic or Win32 input without activating the target. Raw-input games normally ignore this mode. |
-| **2 - Foreground input** | Maximum raw-input game compatibility matters more than background use. | Run activates the selected target once, settles the pointer before each click, and holds mouse buttons or keys for the configured duration. It pauses safely if the target later loses focus. |
+| **2 - Foreground input** | Maximum raw-input game compatibility matters more than background use. | Run activates the selected target once, can record and replay normal pointer movement, settles the pointer before each click, and holds mouse buttons or keys for the configured duration. It pauses safely if the target later loses focus. |
 | **3 - Background Engine v2** | You want to try covered-window delivery for a target that accepts window messages. | Resolves child controls and sends synthetic focus messages without activation. Queued delivery is reported separately because raw-input software may ignore every action. |
 | **4 - Modern controls** | A custom modern control does not respond to strict background delivery. | Adds UI Automation compatibility, but the target may activate and interrupt typing or IME composition. |
 | **5 - Classic Win32 messages** | The target uses legacy desktop controls. | Sends direct window messages while leaving your pointer and focus free. Raw-input games normally ignore these messages. |
@@ -93,6 +94,7 @@ dotnet run --project .\Editions\ClickRepeaterMini\BackgroundAutomationClickRepea
 
 - A target can ignore background messages when it requires foreground, raw, injected, or hardware input.
 - Foreground input shares the physical desktop pointer and keyboard stream; Windows does not provide an isolated second cursor for ordinary applications.
+- Pointer-path recording is opt-in, sampled to limit workflow size, and active only while the selected target owns foreground focus. Pointer-path playback takes control of the physical cursor. The complete Studio preserves left-button drags as dedicated drag actions; Foreground Recorder Mini records movement and clicks as lightweight steps and does not reproduce a held-button drag.
 - The full Studio restores minimized targets before playback; fully hidden targets are not automated. The Mini editions restore and focus their selected target before sending physical input.
 - The selected target must run at an equal or lower Windows integrity level.
 - Moving the target is supported. Resizing it or changing its internal layout can move controls away from recorded client coordinates.

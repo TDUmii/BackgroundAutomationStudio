@@ -73,6 +73,10 @@ public static class MiniForegroundInput
                 MoveToClientPoint(target, step.X, step.Y);
                 SendChecked(new MiniNative.INPUT { Type = 0, Data = new MiniNative.INPUTUNION { Mouse = new MiniNative.MOUSEINPUT { MouseData = unchecked((uint)step.Value), Flags = 0x0800 } } });
                 break;
+            case "Move":
+                if (!MiniWindowService.TryPackClientPoint(target, step.X, step.Y, out _)) throw new ArgumentOutOfRangeException(nameof(step), "The pointer point must be inside the target's current client area.");
+                MoveToClientPoint(target, step.X, step.Y);
+                break;
             case "Key":
                 await PressKeyAsync(step.Key, pressMilliseconds, focusStateChanged, target, token);
                 break;

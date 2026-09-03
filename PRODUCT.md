@@ -30,7 +30,9 @@ The app runs visibly on Windows 10/11. Recording is always user initiated and ob
 
 ## Capabilities and Constraints
 
-Mini Editions v2.0.0 is a deliberate foreground-only split. Foreground Recorder Mini records one selected window and replays its short sequence with the same physical Windows mouse and keyboard path as Studio Engine 2. One Click Mini is the smallest edition and repeats only one selected point with the physical mouse. Both activate the chosen target once, pause when that target loses focus, expose physical press duration, default to English with Vietnamese available, and use a lighter graphite dark theme with fully rounded dropdown and tooltip surfaces. They do not provide background pointer isolation.
+Mini Editions v2.1.0 keeps the deliberate foreground-only split and adds opt-in sampled pointer-path recording to Foreground Recorder Mini. Recorded points stay relative to the selected target, appear as readable Move pointer steps, export in portable JSON, and replay through the physical Windows pointer. The lightweight recorder does not convert drag gestures into held-button Drag actions. One Click Mini remains the smallest edition and repeats only one selected point. Both activate the chosen target once, pause when that target loses focus, expose physical press duration, default to English with Vietnamese available, and use a lighter graphite dark theme with fully rounded dropdown and tooltip surfaces. They do not provide background pointer isolation.
+
+Version 2.6.0 adds opt-in pointer-path recording for Engine 2. Normal mouse motion is sampled only inside the selected foreground target, stored as editable client-relative Move pointer actions, and replayed through the physical pointer with existing focus-loss protection. Movement while the left button is held remains one dedicated Drag action rather than being fragmented into pointer-path samples.
 
 Mini Editions v1.0.0 adds two independently packaged, source-sharing utilities that omit OpenCV and the full workflow editor. Recorder Mini captures clicks, right clicks, wheel input, and key presses from one selected window and exports portable JSON. Click Repeater Mini sends one client-relative background click on a count, infinite schedule, and configurable start-to-start interval. Its point picker can be cancelled from the button or with Escape, and terminal completion, stop, error, and progress states remain visible until the next operation. Each mini ships as one self-contained Windows x64 EXE. Both retain English and Vietnamese UI, explicit raw-input limitations, local-only operation, and a global start or stop shortcut when available.
 
@@ -46,7 +48,7 @@ Version 2.3.3 includes window selection and resolution, explicit click/scroll/ke
 
 ## Brand Commitments
 
-The product name is Background Automation Studio. The version label is "Version 2.5.0 - Visual Blocks". The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
+The product name is Background Automation Studio. The version label is "Version 2.6.0 - Pointer Paths". The interface must be clean, minimal, modern, professional, readable, and may default to a restrained dark theme; it must not use neon, gaming styling, strong gradients, or distracting animation.
 
 ## Evidence on Hand
 
@@ -55,7 +57,7 @@ The supplied product brief contains the complete V1 workflow, architecture, DSL,
 ## Product Principles
 
 - Record only explicit user actions against the selected target.
-- Never record pointer movement.
+- Record pointer movement only through an explicit opt-in control, only inside the selected focused target, and sample it to keep workflows inspectable.
 - Make every workflow step inspectable and reversible before playback.
 - Resolve client coordinates against the target's current location for every replayed action.
 - Keep editor models independent from the current background-message runner so later engines can be added.

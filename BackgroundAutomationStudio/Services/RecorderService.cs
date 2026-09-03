@@ -11,6 +11,7 @@ public sealed class RecorderService : IDisposable
 {
     private readonly IWindowManager _windowManager;
     private readonly Func<string> _playbackModeProvider;
+    private readonly Func<bool> _recordPointerPathProvider;
     private NativeMethods.HookProc? _mouseProc;
     private NativeMethods.HookProc? _keyboardProc;
     private IntPtr _mouseHook;
@@ -33,14 +34,21 @@ public sealed class RecorderService : IDisposable
     private bool _ctrlConsumed;
     private bool _altConsumed;
     private bool _shiftConsumed;
+    private DateTime? _lastPointerMoveAt;
+    private POINT _lastPointerMove;
+    private bool _hasPointerMove;
+    internal const int PointerMoveSampleMilliseconds = 32;
+    internal const int PointerMoveMinimumDistance = 2;
     public bool IsRecording { get; private set; }
+    public bool WillRecordPointerPath => PlaybackModes.Normalize(_playbackModeProvider()) == PlaybackModes.GameForeground && _recordPointerPathProvider();
     public TimeSpan Elapsed => IsRecording ? DateTime.UtcNow - _sessionStart : TimeSpan.Zero;
     public event EventHandler<AutomationAction>? ActionRecorded;
 
-    public RecorderService(IWindowManager windowManager, Func<string>? playbackModeProvider = null)
+    public RecorderService(IWindowManager windowManager, Func<string>? playbackModeProvider = null, Func<bool>? recordPointerPathProvider = null)
     {
         _windowManager = windowManager;
         _playbackModeProvider = playbackModeProvider ?? (() => PlaybackModes.Automatic);
+        _recordPointerPathProvider = recordPointerPathProvider ?? (() => false);
     }
 
     public void Start(IntPtr targetHwnd)
@@ -50,6 +58,7 @@ public sealed class RecorderService : IDisposable
         lock (_sync)
         {
             _actions.Clear(); _textBuffer.Clear(); _pendingLeft = null; _gameLeftDown = null; _gameKeysDown.Clear(); _gameModifierTimes.Clear();
+            _lastPointerMoveAt = null; _hasPointerMove = false;
             _targetHwnd = NativeMethods.GetAncestor(targetHwnd, NativeMethods.GaRoot);
             _sessionStart = _lastCommitted = DateTime.UtcNow;
         }
@@ -81,18 +90,34 @@ public sealed class RecorderService : IDisposable
 
     private IntPtr MouseCallback(int code, IntPtr wParam, IntPtr lParam)
     {
-        // WM_MOUSEMOVE is deliberately never handled or stored.
         var message = wParam.ToInt32();
         var gameRecording = PlaybackModes.IsGame(_playbackModeProvider());
-        if (code >= 0 && IsRecording && (message == NativeMethods.WmLButtonDown || message == NativeMethods.WmRButtonDown || message == NativeMethods.WmMouseWheel || gameRecording && message == NativeMethods.WmLButtonUp))
+        var pointerPathRecording = message == NativeMethods.WmMouseMove && WillRecordPointerPath;
+        if (code >= 0 && IsRecording && (pointerPathRecording || message == NativeMethods.WmLButtonDown || message == NativeMethods.WmRButtonDown || message == NativeMethods.WmMouseWheel || gameRecording && message == NativeMethods.WmLButtonUp))
         {
             var data = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
-            if (_windowManager.IsPointInsideTarget(_targetHwnd, data.Point) || gameRecording && message == NativeMethods.WmLButtonUp && _gameLeftDown is not null)
+            var targetFocused = NativeMethods.GetAncestor(NativeMethods.GetForegroundWindow(), NativeMethods.GaRoot) == _targetHwnd;
+            if (_windowManager.IsPointInsideTarget(_targetHwnd, data.Point) && (!pointerPathRecording || targetFocused) || gameRecording && message == NativeMethods.WmLButtonUp && _gameLeftDown is not null)
             {
                 var client = data.Point;
                 NativeMethods.ScreenToClient(_targetHwnd, ref client);
                 lock (_sync)
                 {
+                    if (pointerPathRecording)
+                    {
+                        if (_gameLeftDown is null)
+                        {
+                            var now = DateTime.UtcNow;
+                            if (ShouldCapturePointerMove(_lastPointerMoveAt, _lastPointerMove, _hasPointerMove, now, client))
+                            {
+                                FlushPendingClick(); FlushText();
+                                var move = new MovePointerAction { ClientX = Math.Max(0, client.X), ClientY = Math.Max(0, client.Y), DelayBefore = Math.Max(0, (int)(now - _lastCommitted).TotalMilliseconds) };
+                                _actions.Add(move); _lastCommitted = now; ActionRecorded?.Invoke(this, move);
+                                _lastPointerMoveAt = now; _lastPointerMove = client; _hasPointerMove = true;
+                            }
+                        }
+                        return NativeMethods.CallNextHookEx(_mouseHook, code, wParam, lParam);
+                    }
                     FlushText();
                     if (message == NativeMethods.WmMouseWheel)
                     {
@@ -126,6 +151,15 @@ public sealed class RecorderService : IDisposable
             }
         }
         return NativeMethods.CallNextHookEx(_mouseHook, code, wParam, lParam);
+    }
+
+    internal static bool ShouldCapturePointerMove(DateTime? previousAt, POINT previousPoint, bool hasPreviousPoint, DateTime now, POINT currentPoint)
+    {
+        if (!hasPreviousPoint || previousAt is null) return true;
+        if ((now - previousAt.Value).TotalMilliseconds < PointerMoveSampleMilliseconds) return false;
+        var deltaX = (long)currentPoint.X - previousPoint.X;
+        var deltaY = (long)currentPoint.Y - previousPoint.Y;
+        return deltaX * deltaX + deltaY * deltaY >= PointerMoveMinimumDistance * PointerMoveMinimumDistance;
     }
 
     private IntPtr KeyboardCallback(int code, IntPtr wParam, IntPtr lParam)

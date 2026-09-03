@@ -21,6 +21,7 @@ public partial class SettingsWindow : Window
         HotkeyBox.Text = settings.RunHotkey;
         PauseHotkeyBox.Text = settings.PauseHotkey;
         GamePressDurationBox.Text = AppSettings.NormalizeGamePressDuration(settings.GamePressDurationMilliseconds).ToString();
+        RecordPointerPathBox.IsChecked = settings.RecordPointerPath;
         if (settings.Language == "vi") VietnameseRadio.IsChecked = true; else EnglishRadio.IsChecked = true;
         switch (PlaybackModes.Normalize(settings.PlaybackMode))
         {
@@ -119,6 +120,7 @@ public partial class SettingsWindow : Window
             RunHotkey = HotkeyBox.Text,
             PauseHotkey = PauseHotkeyBox.Text,
             AlwaysOnTop = _original.AlwaysOnTop,
+            RecordPointerPath = RecordPointerPathBox.IsChecked == true,
             GamePressDurationMilliseconds = gamePressDuration,
             PlaybackMode = UiAutomationRadio.IsChecked == true ? PlaybackModes.UiAutomation
                 : Win32Radio.IsChecked == true ? PlaybackModes.Win32Messages

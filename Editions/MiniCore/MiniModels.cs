@@ -18,6 +18,7 @@ public sealed record RecordedMiniStep(string Type, int DelayMilliseconds, int X 
         "Click" => $"Click  {X}, {Y}",
         "RightClick" => $"Right click  {X}, {Y}",
         "Scroll" => $"Scroll  {Value} at {X}, {Y}",
+        "Move" => $"Move pointer  {X}, {Y}",
         "Key" => $"Key  {Key}",
         _ => Type
     };
@@ -27,6 +28,7 @@ public sealed record RecordedMiniStep(string Type, int DelayMilliseconds, int X 
         "Click" => $"Nhấp trái  {X}, {Y}",
         "RightClick" => $"Nhấp phải  {X}, {Y}",
         "Scroll" => $"Cuộn  {Value} tại {X}, {Y}",
+        "Move" => $"Di chuyển chuột  {X}, {Y}",
         "Key" => $"Phím  {Key}",
         _ => Type
     };

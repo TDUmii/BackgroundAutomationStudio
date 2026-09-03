@@ -14,15 +14,23 @@ public sealed class MiniRecorder : IDisposable
     private nint _target;
     private Stopwatch _clock = new();
     private long _lastEvent;
+    private bool _recordPointerMovement;
+    private bool _hasPointerMove;
+    private long _lastPointerMoveAt;
+    private MiniPoint _lastPointerMove = new(0, 0);
+
+    public const int PointerMoveSampleMilliseconds = 32;
+    public const int PointerMoveMinimumDistance = 2;
 
     public bool IsRecording => _mouseHook != nint.Zero || _keyboardHook != nint.Zero;
     public event EventHandler<RecordedMiniStep>? StepCaptured;
 
-    public void Start(nint target)
+    public void Start(nint target, bool recordPointerMovement = false)
     {
         if (IsRecording) throw new InvalidOperationException("Recording is already active.");
         if (!MiniNative.IsWindow(target)) throw new InvalidOperationException("Select an open target window first.");
         _steps.Clear(); _target = target; _clock.Restart(); _lastEvent = 0;
+        _recordPointerMovement = recordPointerMovement; _hasPointerMove = false; _lastPointerMoveAt = 0;
         _mouseProc = MouseHook; _keyboardProc = KeyboardHook;
         var module = MiniNative.GetModuleHandle(null);
         _mouseHook = MiniNative.SetWindowsHookEx(14, _mouseProc, module, 0);
@@ -40,19 +48,40 @@ public sealed class MiniRecorder : IDisposable
 
     private nint MouseHook(int code, nint wParam, nint lParam)
     {
-        if (code >= 0 && wParam is 0x0201 or 0x0204 or 0x020A)
+        var isPointerMove = wParam == 0x0200;
+        if (code >= 0 && (wParam is 0x0201 or 0x0204 or 0x020A || _recordPointerMovement && isPointerMove))
         {
             var data = Marshal.PtrToStructure<MiniNative.MSLLHOOKSTRUCT>(lParam);
             var hit = MiniNative.WindowFromPoint(data.Point);
-            if (MiniWindowService.IsTargetOrChild(_target, hit))
+            var targetFocused = MiniWindowService.IsTargetOrChild(_target, MiniNative.GetForegroundWindow());
+            if (MiniWindowService.IsTargetOrChild(_target, hit) && (!isPointerMove || targetFocused))
             {
                 var point = MiniWindowService.ScreenToClient(_target, data.Point.X, data.Point.Y);
+                if (isPointerMove)
+                {
+                    var now = _clock.ElapsedMilliseconds;
+                    if (ShouldCapturePointerMove(_hasPointerMove, _lastPointerMoveAt, _lastPointerMove, now, point))
+                    {
+                        Add(new("Move", NextDelay(), point.X, point.Y));
+                        _hasPointerMove = true; _lastPointerMoveAt = now; _lastPointerMove = point;
+                    }
+                    return MiniNative.CallNextHookEx(nint.Zero, code, wParam, lParam);
+                }
                 var type = wParam == 0x0201 ? "Click" : wParam == 0x0204 ? "RightClick" : "Scroll";
                 var wheel = type == "Scroll" ? (short)(data.MouseData >> 16) : 0;
                 Add(new(type, NextDelay(), point.X, point.Y, wheel));
             }
         }
         return MiniNative.CallNextHookEx(nint.Zero, code, wParam, lParam);
+    }
+
+    public static bool ShouldCapturePointerMove(bool hasPreviousPoint, long previousAt, MiniPoint previousPoint, long now, MiniPoint currentPoint)
+    {
+        if (!hasPreviousPoint) return true;
+        if (now - previousAt < PointerMoveSampleMilliseconds) return false;
+        var deltaX = (long)currentPoint.X - previousPoint.X;
+        var deltaY = (long)currentPoint.Y - previousPoint.Y;
+        return deltaX * deltaX + deltaY * deltaY >= PointerMoveMinimumDistance * PointerMoveMinimumDistance;
     }
 
     private nint KeyboardHook(int code, nint wParam, nint lParam)

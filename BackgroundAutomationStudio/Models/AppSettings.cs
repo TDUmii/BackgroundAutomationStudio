@@ -11,6 +11,7 @@ public sealed class AppSettings
     public string PauseHotkey { get; set; } = "CTRL+SHIFT+F10";
     public string PlaybackMode { get; set; } = PlaybackModes.Automatic;
     public int GamePressDurationMilliseconds { get; set; } = DefaultGamePressDurationMilliseconds;
+    public bool RecordPointerPath { get; set; }
     public bool AlwaysOnTop { get; set; }
 
     public static int NormalizeGamePressDuration(int value) =>
